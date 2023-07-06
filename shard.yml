@@ -4,6 +4,10 @@ version: 0.1.0
 authors:
   - Margret Riegert <margret@eowyn.net>
 
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+
 targets:
   crystaldoc:
     main: src/crystaldoc.cr
