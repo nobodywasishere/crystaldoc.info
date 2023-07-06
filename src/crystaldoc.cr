@@ -14,7 +14,7 @@ module CrystalDoc
     Dir.cd("#{user}-#{repo}") do
       # shards install to install dependencies
       # return an error if this fails
-      unless Process.run("shards", ["install"]).success?
+      unless Process.run("shards", ["install", "----without-development", "--skip-postinstall", "--skip-executables"]).success?
         return "Failed to install dependencies via shard"
       end
 
@@ -33,7 +33,7 @@ module CrystalDoc
     # copy docs to `/public/:site/:repo/:user` folder
     `mv "#{user}-#{repo}/docs" "public/#{site}/#{user}/#{repo}"`
 
-    "#{site} documentation here"
+    "Generated #{site} documentation"
   ensure
     `rm -rf "#{user}-#{repo}"`
   end
