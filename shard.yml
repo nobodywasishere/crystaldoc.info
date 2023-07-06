@@ -1,0 +1,13 @@
+name: crystaldoc
+version: 0.1.0
+
+authors:
+  - Margret Riegert <margret@eowyn.net>
+
+targets:
+  crystaldoc:
+    main: src/crystaldoc.cr
+
+crystal: 1.8.2
+
+license: MIT
