@@ -1,4 +1,9 @@
 module CrystalDoc
+  GIT_WEBSITES = {
+    "github" => "https://github.com",
+    "gitlab" => "https://gitlab.com"
+  }
+
   class Repository
     getter url : String
     getter site : String

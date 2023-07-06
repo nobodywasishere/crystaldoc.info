@@ -1,3 +1,5 @@
+require "kemal"
+
 get "/" do
   "CrystalDoc.info - Crystal Shard Documentation"
 end
@@ -23,3 +25,5 @@ get "/:site/:user/:proj/versions.json" do |env|
 
   repo.versions_to_json
 end
+
+Kemal.run
