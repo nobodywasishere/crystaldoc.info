@@ -1,10 +1,27 @@
 module CrystalDoc
   class Worker
+    PROJECT_ROOT = Path[__DIR__].parent.parent
+
+    def self.execute_firejail(cmd : String, args : Array(String), directory : String)
+      directory = Path[directory].absolute? ? directory : PROJECT_ROOT / directory
+
+      Process.run("firejail", [
+        "--noprofile",
+        "--read-only=#{PROJECT_ROOT}",
+        "--read-write=#{directory}",
+        "--restrict-namespaces",
+        "--rlimit-as=3g",
+        "--timeout=00:15:00",
+        cmd,
+        *args
+      ])
+    end
+
     def self.generate_docs(repo : CrystalDoc::Repository)
-      temp_folder = "#{repo.user}-#{repo.proj}"
+      temp_folder = Path["#{repo.user}-#{repo.proj}"].expand
 
       # clone repo from site
-      unless Process.run("git", ["clone", repo.url, temp_folder]).success?
+      unless Process.run("git", ["clone", repo.url, temp_folder.to_s]).success?
         raise "Failed to clone URL: #{repo.site}"
       end
       # `git clone #{site} "#{user}-#{repo}"`
@@ -25,13 +42,13 @@ module CrystalDoc
 
           # shards install to install dependencies
           # return an error if this fails
-          unless Process.run("shards", ["install", "----without-development", "--skip-postinstall", "--skip-executables"]).success?
+          unless execute_firejail("shards", ["install", "--without-development", "--skip-postinstall", "--skip-executables"], temp_folder.to_s).success?
             raise "Failed to install dependencies via shard"
           end
 
           # generate docs using crystal
           # return an error if this fails
-          unless Process.run("crystal", ["doc", "--json-config-url=/#{repo.site}/#{repo.user}/#{repo.proj}/versions.json"]).success?
+          unless execute_firejail("crystal", ["doc", "--json-config-url=/#{repo.site}/#{repo.user}/#{repo.proj}/versions.json"], temp_folder.to_s).success?
             raise "Failed to generate documentation with Crystal"
           end
 
@@ -42,7 +59,7 @@ module CrystalDoc
 
       "Generated #{repo.site} documentation"
     ensure
-      `rm -rf "#{temp_folder}"`
+      # `rm -rf "#{temp_folder}"`
     end
   end
 end
