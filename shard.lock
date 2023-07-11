@@ -4,6 +4,10 @@ shards:
     git: https://github.com/sija/backtracer.cr.git
     version: 1.2.2
 
+  db:
+    git: https://github.com/crystal-lang/crystal-db.git
+    version: 0.12.0
+
   exception_page:
     git: https://github.com/crystal-loot/exception_page.git
     version: 0.3.1
@@ -11,6 +15,10 @@ shards:
   kemal:
     git: https://github.com/kemalcr/kemal.git
     version: 1.4.0
+
+  pg:
+    git: https://github.com/will/crystal-pg.git
+    version: 0.27.0
 
   radix:
     git: https://github.com/luislavena/radix.git
