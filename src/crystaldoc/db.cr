@@ -3,14 +3,6 @@ require "pg"
 require "json"
 
 module CrystalDoc
-  SERVICE_HOSTS = {
-    "github.com" => "github",
-    "gitlab.com" => "gitlab",
-    "git.sr.ht" => "git-sr-ht",
-    "hg.sr.ht" => "hg-sr-ht",
-    "codeberg.org" => "codeberg",
-  }
-
   alias RepoId = Int32
   alias VersionId = Int32
 
@@ -35,7 +27,7 @@ module CrystalDoc
       db.scalar(
         "INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
          VALUES ($1, $2, $3)
-         RETURNING id", 
+         RETURNING id",
         repo_id, commit_id, nightly).as(Int32)
     end
 
@@ -112,6 +104,14 @@ module CrystalDoc
       "/#{service}/#{username}/#{project_name}"
     end
 
+    def self.uri_to_service(uri : URI) : String
+      if (host = uri.host).nil?
+        raise "No host: #{uri}"
+      end
+
+      host.gsub(/\.com$/, "").gsub(/\./, "-")
+    end
+
     def self.from_kemal_env(env) : Array(Repo) | Nil
       DB.open(ENV["POSTGRES_DB"]) do |db|
         service = env.params.url["serv"]
@@ -128,11 +128,11 @@ module CrystalDoc
 
     def self.create(source_url : String)
       uri = URI.parse(source_url).normalize
-      service = SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
-      
+
       path_fragments = uri.path.split('/')[1..]
       raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
 
+      service = self.uri_to_service(uri)
       username = path_fragments[0]
       project_name = path_fragments[1]
 
@@ -168,7 +168,7 @@ module CrystalDoc
     def status : RepoStatus
       DB.open(ENV["POSTGRES_DB"]) do |db|
         CrystalDoc::RepoStatus.from_rs(
-          db.query "SELECT * FROM crystal_doc.repo_status WHERE repo_id = $1", id 
+          db.query "SELECT * FROM crystal_doc.repo_status WHERE repo_id = $1", id
         )
       end
     end
@@ -194,7 +194,7 @@ module CrystalDoc
 
     def self.parse_url(repo_url : String) : {service: String, username: String, project_name: String}
       uri = URI.parse(repo_url).normalize
-      service = CrystalDoc::SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
+      service = uri_to_service(uri)
       
       path_fragments = uri.path.split('/')[1..]
       raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
