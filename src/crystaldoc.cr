@@ -5,3 +5,4 @@ end
 require "./crystaldoc/db"
 require "./crystaldoc/worker"
 require "./crystaldoc/server"
+require "./crystaldoc/views"
