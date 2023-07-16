@@ -1,12 +1,7 @@
 require "kemal"
 require "db"
 require "pg"
-
-SERVICE_HOSTS = {
-    "github.com" => "github",
-    "gitlab.com" => "gitlab",
-    "sr.ht" => "srht"
-}
+require "semantic_version"
 
 get "/" do
   "CrystalDoc.info - Crystal Shard Documentation"
@@ -92,7 +87,7 @@ end
 
 def parse_repo_info(repo_url : String) : {service: String, username: String, project_name: String}
   uri = URI.parse(repo_url).normalize
-  service = SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
+  service = CrystalDoc::SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
       
   path_fragments = uri.path.split('/')[1..]
   raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
