@@ -40,14 +40,6 @@ CREATE TABLE repo_status (
 
 GRANT SELECT, INSERT, UPDATE ON repo_status TO crystal_doc_server;
 
-CREATE TABLE repo_job (
-    id int not null primary key generated always as identity,
-    queue_time	timestamptz default now(),
-    source_url text not null
-);
-
-GRANT SELECT, INSERT, DELETE ON repo_job TO crystal_doc_server;
-
 CREATE TABLE doc_job (
     id int not null primary key generated always as identity,
     queue_time	timestamptz default now(),

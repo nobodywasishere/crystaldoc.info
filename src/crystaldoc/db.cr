@@ -6,8 +6,70 @@ module CrystalDoc
   SERVICE_HOSTS = {
     "github.com" => "github",
     "gitlab.com" => "gitlab",
-    "sr.ht" => "srht"
+    "git.sr.ht" => "git-sr-ht",
+    "hg.sr.ht" => "hg-sr-ht",
+    "codeburg.com" => "codeburg",
   }
+
+  alias RepoId = Int32
+  alias VersionId = Int32
+
+  alias Queriable = DB::QueryMethods(DB::Statement)
+
+  class Queries
+    def self.has_repo(repo_url : String)
+      DB.open(ENV["POSTGRES_DB"]) do |db|
+        db.scalar("SELECT EXISTS(SELECT 1 FROM crystal_doc.repo WHERE repo.source_url = $1)", repo_url).as(Bool)
+      end
+    end
+
+    def self.insert_repo(db : Queriable, service : String, username : String, project_name : String, source_url : String) : RepoId
+      db.scalar(
+        "INSERT INTO crystal_doc.repo (service, username, project_name, source_url)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id",
+        service, username, project_name, source_url).as(Int32)
+    end
+
+    def self.insert_version(db : Queriable, repo_id : RepoId, commit_id : String, nightly : Bool = false) : VersionId
+      db.scalar(
+        "INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
+         VALUES ($1, $2, $3)
+         RETURNING id", 
+        repo_id, commit_id, nightly).as(Int32)
+    end
+
+    def self.upsert_repo_status(db : Queriable, repo_id : RepoId)
+      db.exec(
+        "INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
+         VALUES ($1, 'UNUSED', now())
+         ON CONFLICT(repo_id) DO UPDATE SET last_checked = EXCLUDED.last_checked",
+        repo_id)
+    end
+
+    def self.get_repos(db : Queriable) : Array(Repo)
+      CrystalDoc::Repo.from_rs(db.query("SELECT repo.project_name, repo.source_url FROM repo"))
+    end
+
+    def self.get_latest_version(db : Queriable, repo_id : RepoId) : RepoVersion?
+      db.query_one(
+        "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
+         FROM repo_version INNER JOIN repo_latest_version
+         ON repo_version.id = repo_latest_version.latest_version
+         WHERE repo_latest_version.repo_id = $1",
+        id) do |rs|
+          RepoVersion.from_rs(rs)
+        end
+    end
+
+    def self.get_versions(db : Queriable, repo_id : RepoId) : Array(Repo)?
+      CrystalDoc::RepoVersion.from_rs(
+          db.query(
+          "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
+           FROM crystal_doc.repo_version
+           WHERE repo_id = $1", id))
+    end
+  end
 
   class Repo
     include DB::Serializable
@@ -90,10 +152,17 @@ module CrystalDoc
   class RepoVersion
     include DB::Serializable
 
-    property id : Int32
-    property repo_id : Int32
-    property commit_id : String
-    property nightly : Bool
+    getter id : Int32
+    getter repo_id : Int32
+    getter commit_id : String
+    getter nightly : Bool
+
+    def initialize(@id : Int32, @repo_id : Int32, @commit_id : String, @nightly : Bool)
+    end
+
+    def self.create(repo : Repo, commid_id : String, nightly : Bool)
+
+    end
 
     def self.create(repo_id, version)
 
