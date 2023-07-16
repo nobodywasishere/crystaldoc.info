@@ -158,7 +158,7 @@ module CrystalDoc
         "versions" => versions.map do |version|
           {
             "name" => "#{version.commit_id}",
-            "url" => "#{path}/index.html",
+            "url" => "#{path}/#{version.commit_id}/index.html",
             "released" => !version.nightly
           }
         end

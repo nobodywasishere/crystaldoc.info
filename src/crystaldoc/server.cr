@@ -13,11 +13,11 @@ get "/:serv/:user/:proj" do |env|
   unless repo.nil?
     repo = repo.first
 
-    unless repo.versions.size > 0 && File.exists?("public/#{repo.path}/#{repo.versions.first}")
+    unless repo.versions.size > 0 && File.exists?("public#{repo.path}/#{repo.versions.first.commit_id}")
       puts CrystalDoc::Worker.generate_docs(repo)
     end
 
-    env.redirect "/#{repo.path}/latest"
+    env.redirect "#{repo.path}/latest"
   end
 end
 
@@ -25,7 +25,7 @@ get "/:serv/:user/:proj/latest" do |env|
   repo = CrystalDoc::Repo.from_kemal_env(env)
   unless repo.nil?
     repo = repo.first
-    env.redirect "/#{repo.path}/index.html"
+    env.redirect "#{repo.path}/#{repo.versions.first.commit_id}/index.html"
   end
 end
 
