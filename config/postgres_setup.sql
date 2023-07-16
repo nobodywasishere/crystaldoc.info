@@ -9,7 +9,7 @@ CREATE TABLE repo (
     service text not null,
     username text not null,
     project_name text not null,
-    source_url text not null
+    source_url text not null,
     unique (service, username, project_name)
 );
 
