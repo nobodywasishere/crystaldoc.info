@@ -12,11 +12,11 @@ get "/:serv/:user/:proj" do |env|
   repo = CrystalDoc::Repo.from_kemal_env(env)
   unless repo.nil?
     repo = repo.first
-  
+
     unless repo.versions.size > 0 && File.exists?("public/#{repo.path}/#{repo.versions.first}")
       puts CrystalDoc::Worker.generate_docs(repo)
     end
-  
+
     env.redirect "/#{repo.path}/latest"
   end
 end
@@ -33,7 +33,7 @@ get "/:serv/:user/:proj/versions.json" do |env|
   repo = CrystalDoc::Repo.from_kemal_env(env)
   unless repo.nil?
     repo = repo.first
-  
+
     repo.versions_to_json
   end
 end
@@ -60,7 +60,7 @@ end
 
 get "/pending_jobs" do |env|
   limit = env.params.query["limit"]?.try &.to_i32
-  
+
   html = ""
   DB.open(ENV["POSTGRES_DB"]) do |db|
     jobs = CrystalDoc::DocJob.select(db, limit)
@@ -81,7 +81,7 @@ def git_ls_remote(repo_url : String, output : Process::Stdio = Process::Redirect
 end
 
 def get_git_versions(repo_url : String, &)
-  stdout = IO::Memory.new()
+  stdout = IO::Memory.new
   unless git_ls_remote(repo_url, stdout)
     raise "git ls-remote failed"
   end
@@ -97,8 +97,8 @@ def get_git_versions(repo_url : String, &)
   end
 end
 
-LATEST_PRIORITY = 1000
-HISTORICAL_PRIORITY = -10
+LATEST_PRIORITY     = 1000
+HISTORICAL_PRIORITY =  -10
 
 def add_new_repo(repo_url : String)
   repo_info = CrystalDoc::Repo.parse_url(repo_url)
@@ -116,10 +116,9 @@ def add_new_repo(repo_url : String)
 
         # Don't record version until we've tried to parse the version
         version_id = CrystalDoc::Queries.insert_version(conn, repo_id, tag)
-        versions.push({ id: version_id, normalized_form: normalized_version })
-
+        versions.push({id: version_id, normalized_form: normalized_version})
       rescue ArgumentError
-        puts "Unknown version format \"#{ tag }\" from repo \"#{ repo_url }\""
+        puts "Unknown version format \"#{tag}\" from repo \"#{repo_url}\""
       end
 
       versions = versions.sort_by { |version| version[:normalized_form] }
