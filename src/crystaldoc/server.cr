@@ -1,7 +1,7 @@
 require "kemal"
 
 get "/" do
-  "CrystalDoc.info - Crystal Shard Documentation"
+  render "src/views/main.ecr", "src/views/layouts/layout.ecr"
 end
 
 get "/:site/:user/:proj" do |env|

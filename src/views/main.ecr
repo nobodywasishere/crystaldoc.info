@@ -1,0 +1,17 @@
+<h1>Crystal Shards Documentation</h1>
+
+<p>This is a website for documentation of various shards for the Crystal programming language. It is similar in idea and function to <a href="https://rubydoc.info/">rubydoc.info</a>. All the documentation on this site is generated using Crystal's built-in documentation generation tool.</p>
+
+<pre><code>
+  def versions_to_json
+    str = "{\"versions\":["
+    str += versions.map do |version|
+      "{\"name\": \"#{version}\", \"url\": \"/#{site}/#{user}/#{proj}/#{version}/index.html\"}"
+    end.join(",")
+    str += "]}"
+  end
+</code></pre>
+
+<h2>Adding a shard</h2>
+
+<p>To add a shard repository, fill out the form at <a href="">this link</a>.</p>
