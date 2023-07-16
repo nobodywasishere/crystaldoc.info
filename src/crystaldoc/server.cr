@@ -107,8 +107,10 @@ def add_new_repo(repo_url : String)
   DB.open(ENV["POSTGRES_DB"]) do |db|
     db.transaction do |tx|
       conn = tx.connection
+      #Insert repo into database
       repo_id = CrystalDoc::Queries.insert_repo(conn, repo_info[:service], repo_info[:username], repo_info[:project_name], repo_url)
 
+      #Identify repo versions, and add to database
       versions = Array({id: Int32, normalized_form: SemanticVersion}).new
       get_git_versions(repo_url) do |_, tag|
         normalized_version = SemanticVersion.parse(tag.lchop('v'))
@@ -123,15 +125,18 @@ def add_new_repo(repo_url : String)
 
       versions = versions.sort_by { |version| version[:normalized_form] }
 
+      # Add doc generation jobs to the database queue, prioritized newest to oldest
       versions.each_with_index do |version, index|
         priority = index == versions.size - 1 ? LATEST_PRIORITY : (versions.size - index) * HISTORICAL_PRIORITY
         CrystalDoc::Queries.insert_doc_job(conn, version[:id], priority)
       end
 
+      # Record latest repo version
       if versions.size > 0
         CrystalDoc::Queries.upsert_latest_version(conn, repo_id, versions[-1][:id])
       end
 
+      # Update the repo status (records the last time the repo was processed)
       CrystalDoc::Queries.upsert_repo_status(conn, repo_id)
     end
   end

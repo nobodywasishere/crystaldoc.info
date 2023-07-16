@@ -14,7 +14,7 @@ module CrystalDoc
   alias RepoId = Int32
   alias VersionId = Int32
 
-  alias Queriable = DB::QueryMethods(DB::Statement)
+  alias Queriable = DB::QueryMethods(DB::Statement) | DB::QueryMethods(DB::PoolStatement)
 
   class Queries
     def self.has_repo(repo_url : String)
@@ -70,12 +70,10 @@ module CrystalDoc
     def self.get_latest_version(db : Queriable, repo_id : RepoId) : RepoVersion?
       db.query_one(
         "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
-         FROM repo_version INNER JOIN repo_latest_version
+         FROM crystal_doc.repo_version INNER JOIN crystal_doc.repo_latest_version
          ON repo_version.id = repo_latest_version.latest_version
          WHERE repo_latest_version.repo_id = $1",
-        id) do |rs|
-          RepoVersion.from_rs(rs)
-        end
+        repo_id, as: RepoVersion)
     end
 
     def self.get_latest_version(db : Queriable, service : String, username : String, project_name : String) : RepoVersion?
@@ -86,9 +84,7 @@ module CrystalDoc
          INNER JOIN crystal_doc.repo
          ON repo.id = repo_latest_version.repo_id
          WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3",
-        service, username, project_name) do |rs|
-          RepoVersion.from_rs(rs)
-        end
+        service, username, project_name, as: RepoVersion)
     end
 
     def self.get_versions(db : Queriable, repo_id : RepoId) : Array(Repo)?
