@@ -8,7 +8,7 @@ module CrystalDoc
     "gitlab.com" => "gitlab",
     "git.sr.ht" => "git-sr-ht",
     "hg.sr.ht" => "hg-sr-ht",
-    "codeburg.com" => "codeburg",
+    "codeberg.org" => "codeberg",
   }
 
   alias RepoId = Int32
@@ -39,6 +39,14 @@ module CrystalDoc
         repo_id, commit_id, nightly).as(Int32)
     end
 
+    def self.insert_doc_job(db : Queriable, version_id : VersionId, priority : Int32) : Int32
+      db.scalar(
+        "INSERT INTO crystal_doc.doc_job (version_id, priority)
+         VALUES ($1, $2)
+         RETURNING id",
+         version_id, priority).as(Int32)
+    end
+
     def self.upsert_repo_status(db : Queriable, repo_id : RepoId)
       db.exec(
         "INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
@@ -47,8 +55,16 @@ module CrystalDoc
         repo_id)
     end
 
+    def self.upsert_latest_version(db : Queriable, repo_id : RepoId, version_id : VersionId)
+      db.exec(
+        "INSERT INTO crystal_doc.repo_latest_version (repo_id, latest_version)
+         VALUES ($1, $2)
+         ON CONFLICT(repo_id) DO UPDATE SET latest_version = EXCLUDED.latest_version",
+        repo_id, version_id)
+    end
+
     def self.get_repos(db : Queriable) : Array(Repo)
-      CrystalDoc::Repo.from_rs(db.query("SELECT repo.project_name, repo.source_url FROM repo"))
+      CrystalDoc::Repo.from_rs(db.query("SELECT * FROM crystal_doc.repo"))
     end
 
     def self.get_latest_version(db : Queriable, repo_id : RepoId) : RepoVersion?

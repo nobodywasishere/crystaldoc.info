@@ -98,6 +98,9 @@ def parse_repo_info(repo_url : String) : {service: String, username: String, pro
   { service: service, username: username, project_name: project_name }
 end
 
+LATEST_PRIORITY = 1000
+HISTORICAL_PRIORITY = -10
+
 def add_new_repo(repo_url : String)
   repo_info = parse_repo_info(repo_url)
 
@@ -105,9 +108,30 @@ def add_new_repo(repo_url : String)
     db.transaction do |tx|
       conn = tx.connection
       repo_id = CrystalDoc::Queries.insert_repo(conn, repo_info[:service], repo_info[:username], repo_info[:project_name], repo_url)
+
+      versions = Array({id: Int32, normalized_form: SemanticVersion}).new
       get_git_versions(repo_url) do |_, tag|
-        CrystalDoc::Queries.insert_version(conn, repo_id, tag)
+        normalized_version = SemanticVersion.parse(tag.lchop('v'))
+
+        # don't record version until we've tried to parse the version
+        version_id = CrystalDoc::Queries.insert_version(conn, repo_id, tag)
+        versions.push({ id: version_id, normalized_form: normalized_version })
+
+      rescue ArgumentError
+        puts "Unknown version format \"#{ tag }\" from repo \"#{ repo_url }\""
       end
+
+      versions = versions.sort_by { |version| version[:normalized_form] }
+
+      versions.each_with_index do |version, index|
+        priority = index == versions.size - 1 ? LATEST_PRIORITY : (versions.size - index) * HISTORICAL_PRIORITY
+        CrystalDoc::Queries.insert_doc_job(conn, version[:id], priority)
+      end
+
+      if versions.size > 0
+        CrystalDoc::Queries.upsert_latest_version(conn, repo_id, versions[-1][:id])
+      end
+
       CrystalDoc::Queries.upsert_repo_status(conn, repo_id)
     end
   end

@@ -43,7 +43,8 @@ GRANT SELECT, INSERT, UPDATE ON repo_status TO crystal_doc_server;
 
 CREATE TABLE doc_job (
     id int not null primary key generated always as identity,
-    queue_time	timestamptz default now(),
+    queue_time timestamptz default now(),
+    priority int not null,
     version_id int unique references repo_version on delete cascade
 );
 
