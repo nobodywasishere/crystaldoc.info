@@ -78,6 +78,19 @@ module CrystalDoc
         end
     end
 
+    def self.get_latest_version(db : Queriable, service : String, username : String, project_name : String) : RepoVersion?
+      db.query_one(
+        "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
+         FROM crystal_doc.repo_version INNER JOIN crystal_doc.repo_latest_version
+         ON repo_version.id = repo_latest_version.latest_version
+         INNER JOIN crystal_doc.repo
+         ON repo.id = repo_latest_version.repo_id
+         WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3",
+        service, username, project_name) do |rs|
+          RepoVersion.from_rs(rs)
+        end
+    end
+
     def self.get_versions(db : Queriable, repo_id : RepoId) : Array(Repo)?
       CrystalDoc::RepoVersion.from_rs(
           db.query(
