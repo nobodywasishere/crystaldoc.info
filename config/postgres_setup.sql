@@ -18,7 +18,7 @@ GRANT SELECT, INSERT ON repo TO crystal_doc_server;
 CREATE TABLE repo_version (
     id int not null primary key generated always as identity,
     repo_id int references repo on delete cascade,
-    commit_id text not null unique,
+    commit_id text not null,
     nightly bool default false
 );
 
