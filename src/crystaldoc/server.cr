@@ -22,10 +22,15 @@ get "/:serv/:user/:proj" do |env|
 end
 
 get "/:serv/:user/:proj/latest" do |env|
-  repo = CrystalDoc::Repo.from_kemal_env(env)
-  unless repo.nil?
-    repo = repo.first
-    env.redirect "#{repo.path}/#{repo.versions.first.commit_id}/index.html"
+  DB.open(ENV["POSTGRES_DB"]) do |db|
+    db.transaction do |tx|
+      latest_version = CrystalDoc::Queries.get_latest_version(db,
+        env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
+      )
+      unless latest_version.nil?
+        env.redirect "./#{latest_version.commit_id}/index.html"
+      end
+    end
   end
 end
 
@@ -42,8 +47,8 @@ get "/:serv/:user/:proj/new_version" do |env|
   new_version = env.params.query["new_version"]
 end
 
-get "/new_repository" do |env|
-  url = env.params.query["repo_url"]
+post "/new_repository" do |env|
+  url = env.params.body["url"].as(String)
 
   # TODO: Need to handle URL redirects, is detectable with git ls-remote, just need to parse proper url out of output.  Not sure how to best structure the code.
   if !valid_vcs_url?(url)
@@ -54,8 +59,8 @@ get "/new_repository" do |env|
     add_new_repo(url)
     "Repo added to database"
   end
-rescue ex
-  "Repository failed to be created: #{ex}"
+  # rescue ex
+  #   "Repository failed to be created: #{ex}"
 end
 
 get "/pending_jobs" do |env|
