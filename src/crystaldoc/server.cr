@@ -10,15 +10,7 @@ end
 
 get "/:serv/:user/:proj" do |env|
   repo = CrystalDoc::Repo.from_kemal_env(env)
-  unless repo.nil?
-    repo = repo.first
-
-    unless repo.versions.size > 0 && File.exists?("public#{repo.path}/#{repo.versions.first.commit_id}")
-      puts CrystalDoc::Worker.generate_docs(repo)
-    end
-
-    env.redirect "#{repo.path}/latest"
-  end
+  env.redirect "#{repo.path}/latest"
 end
 
 get "/:serv/:user/:proj/latest" do |env|
@@ -27,8 +19,9 @@ get "/:serv/:user/:proj/latest" do |env|
       latest_version = CrystalDoc::Queries.get_latest_version(db,
         env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
       )
+
       unless latest_version.nil?
-        env.redirect "./#{latest_version.commit_id}/index.html"
+        env.redirect "./#{latest_version.commit_id}/"
       end
     end
   end
@@ -37,14 +30,18 @@ end
 get "/:serv/:user/:proj/versions.json" do |env|
   repo = CrystalDoc::Repo.from_kemal_env(env)
   unless repo.nil?
-    repo = repo.first
-
     repo.versions_to_json
   end
 end
 
-get "/:serv/:user/:proj/new_version" do |env|
-  new_version = env.params.query["new_version"]
+get "/:serv/:user/:proj/:version/" do |env|
+  repo = CrystalDoc::Repo.from_kemal_env(env)
+  version = CrystalDoc::RepoVersion.find(repo.id, env.params.url["version"])
+  unless repo.nil? || version.nil? || File.exists?("public#{repo.path}/#{env.params.url["version"]}")
+    CrystalDoc::Worker.generate_docs(repo, version)
+  end
+
+  env.redirect("#{repo.path}/#{version.commit_id}/index.html")
 end
 
 post "/new_repository" do |env|
