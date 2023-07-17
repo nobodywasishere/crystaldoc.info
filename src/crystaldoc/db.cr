@@ -112,16 +112,12 @@ module CrystalDoc
       host.gsub(/\.com$/, "").gsub(/\./, "-")
     end
 
-    def self.from_kemal_env(env) : Array(Repo) | Nil
+    def self.from_kemal_env(env) : Repo?
       DB.open(ENV["POSTGRES_DB"]) do |db|
-        service = env.params.url["serv"]
-        username = env.params.url["user"]
-        project_name = env.params.url["proj"]
-        CrystalDoc::Repo.from_rs(
-          db.query(
-            "SELECT * FROM crystal_doc.repo WHERE service = $1 AND username = $2 AND project_name = $3",
-            service, username, project_name
-          )
+        db.query_one(
+          "SELECT * FROM crystal_doc.repo WHERE service = $1 AND username = $2 AND project_name = $3",
+          env.params.url["serv"], env.params.url["user"], env.params.url["proj"],
+          as: Repo
         )
       end
     end
@@ -158,7 +154,7 @@ module CrystalDoc
         "versions" => versions.map do |version|
           {
             "name"     => "#{version.commit_id}",
-            "url"      => "#{path}/#{version.commit_id}/index.html",
+            "url"      => "#{path}/#{version.commit_id}/",
             "released" => !version.nightly,
           }
         end,
@@ -239,6 +235,15 @@ module CrystalDoc
     end
 
     def self.create(repo_id, version)
+    end
+
+    def self.find(repo_id : Int32, str : String) : RepoVersion
+      DB.open(ENV["POSTGRES_DB"]) do |db|
+        db.query_one(
+          "SELECT * FROM crystal_doc.repo_version WHERE repo_id = $1 AND commit_id = $2",
+          repo_id, str, as: RepoVersion
+        )
+      end
     end
   end
 
