@@ -28,13 +28,11 @@
 
   <div class="types-list">
     <ul>
-      <% DB.open(ENV["POSTGRES_DB"]) do |db| %>
-        <% db.transaction do |tx| %>
-          <% CrystalDoc::Queries.get_repos(tx.connection).each do |repo| %>
-            <li>
-              <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small></a>
-            </li>
-          <% end %>
+      <% unless repo_list.nil? %>
+        <% repo_list.each do |repo| %>
+          <li>
+            <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small></a>
+          </li>
         <% end %>
       <% end %>
     </ul>

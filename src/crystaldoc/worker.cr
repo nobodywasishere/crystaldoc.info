@@ -38,7 +38,7 @@ module CrystalDoc
           next if File.exists? "../public#{repo.path}/#{version.commit_id}"
 
           p version
-          `git checkout "#{version.commit_id}"`
+          `git checkout --force "#{version.commit_id}"`
 
           # shards install to install dependencies
           # return an error if this fails
