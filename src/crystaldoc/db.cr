@@ -36,7 +36,7 @@ module CrystalDoc
         "INSERT INTO crystal_doc.doc_job (version_id, priority)
          VALUES ($1, $2)
          RETURNING id",
-         version_id, priority).as(Int32)
+        version_id, priority).as(Int32)
     end
 
     def self.upsert_repo_status(db : Queriable, repo_id : RepoId)
@@ -81,7 +81,7 @@ module CrystalDoc
 
     def self.get_versions(db : Queriable, repo_id : RepoId) : Array(Repo)?
       CrystalDoc::RepoVersion.from_rs(
-          db.query(
+        db.query(
           "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
            FROM crystal_doc.repo_version
            WHERE repo_id = $1", id))
@@ -157,11 +157,11 @@ module CrystalDoc
       {
         "versions" => versions.map do |version|
           {
-            "name" => "#{version.commit_id}",
-            "url" => "#{path}/#{version.commit_id}/index.html",
-            "released" => !version.nightly
+            "name"     => "#{version.commit_id}",
+            "url"      => "#{path}/#{version.commit_id}/index.html",
+            "released" => !version.nightly,
           }
-        end
+        end,
       }.to_json
     end
 
@@ -236,11 +236,9 @@ module CrystalDoc
     end
 
     def self.create(repo : Repo, commid_id : String, nightly : Bool)
-
     end
 
     def self.create(repo_id, version)
-
     end
   end
 

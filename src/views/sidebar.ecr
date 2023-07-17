@@ -32,7 +32,7 @@
         <% db.transaction do |tx| %>
           <% CrystalDoc::Queries.get_repos(tx.connection).each do |repo| %>
             <li>
-              <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %></a>
+              <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small></a>
             </li>
           <% end %>
         <% end %>
