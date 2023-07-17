@@ -2,6 +2,7 @@ require "kemal"
 require "db"
 require "pg"
 require "semantic_version"
+require "ecr"
 
 get "/" do
   "CrystalDoc.info - Crystal Shard Documentation"
@@ -55,6 +56,17 @@ get "/new_repository" do |env|
   end
 rescue ex
   "Repository failed to be created: #{ex}"
+end
+
+get "/pending_jobs" do |env|
+  limit = env.params.query["limit"]?.try &.to_i32
+  
+  html = ""
+  DB.open(ENV["POSTGRES_DB"]) do |db|
+    jobs = CrystalDoc::DocJob.select(db, limit)
+    html = ECR.render("src/crystaldoc/job_table.ecr")
+  end
+  html
 end
 
 Kemal.run
