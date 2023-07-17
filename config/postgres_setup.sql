@@ -19,7 +19,8 @@ CREATE TABLE repo_version (
     id int not null primary key generated always as identity,
     repo_id int references repo on delete cascade,
     commit_id text not null,
-    nightly bool default false
+    nightly bool default false,
+    unique (repo_id, commit_id)
 );
 
 GRANT SELECT, INSERT ON repo_version TO crystal_doc_server;
@@ -48,4 +49,4 @@ CREATE TABLE doc_job (
     version_id int unique references repo_version on delete cascade
 );
 
-GRANT SELECT, INSERT, DELETE ON doc_job TO crystal_doc_server;
+GRANT SELECT, INSERT, UPDATE, DELETE ON doc_job TO crystal_doc_server;
