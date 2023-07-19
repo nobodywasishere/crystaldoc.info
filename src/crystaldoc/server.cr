@@ -4,6 +4,12 @@ require "pg"
 require "semantic_version"
 require "ecr"
 
+# Need to create the doc.js
+Dir.mkdir_p("public/css", 0o744)
+Dir.mkdir_p("public/js", 0o744)
+File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
+File.write "public/js/doc.js", CrystalDoc::Views::JsTypeTemplate.new
+
 get "/" do
   render "src/views/main.ecr", "src/views/layouts/layout.ecr"
 end
