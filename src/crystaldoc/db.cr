@@ -151,7 +151,7 @@ module CrystalDoc
 
     def versions_to_json
       {
-        "versions" => versions.map do |version|
+        "versions" => versions.reverse.map do |version|
           {
             "name"     => "#{version.commit_id}",
             "url"      => "#{path}/#{version.commit_id}/",
