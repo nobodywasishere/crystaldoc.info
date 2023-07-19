@@ -211,7 +211,7 @@ body {
 
 .types-list li.parent::before {
   box-sizing: border-box;
-  content: "▼";
+  content: "\25BC";
   display: block;
   width: 30px;
   height: 30px;
@@ -760,7 +760,7 @@ img {
     transition-duration: 200ms;
     left: 0;
   }
-  
+
   #sidebar-btn:not(:checked) ~ #sidebar-btn-label > .close,
   #sidebar-btn:checked ~ #sidebar-btn-label > .open,
   #sidebar-btn:checked ~ .main-content {
@@ -922,15 +922,15 @@ img {
   .sidebar input::-webkit-input-placeholder { /* Chrome/Opera/Safari */
     color: white;
   }
-  
+
   .sidebar input::-moz-placeholder { /* Firefox 19+ */
     color: white;
   }
-  
+
   .sidebar input:-ms-input-placeholder { /* IE 10+ */
     color: white;
   }
-  
+
   .sidebar input:-moz-placeholder { /* Firefox 18- */
     color: white;
   }
@@ -942,6 +942,6 @@ img {
   }
 
   #sidebar-btn, #sidebar-btn-label {
-    color: white; 
+    color: white;
   }
 }

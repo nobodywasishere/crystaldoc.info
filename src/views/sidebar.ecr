@@ -5,20 +5,16 @@
 </label>
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="search-box">
-      <input type="search" class="search-input" placeholder="Search..." spellcheck="false" aria-label="Search">
-    </div>
-
     <div class="project-summary">
       <h1 class="project-name">
         <a href="/">
           CrystalDoc.info
         </a>
       </h1>
+    </div>
 
-      <span class="project-version">
-
-      </span>
+    <div class="search-box">
+      <input type="search" class="search-input" placeholder="Search..." spellcheck="false" aria-label="Search">
     </div>
   </div>
 
@@ -27,14 +23,21 @@
   </div>
 
   <div class="types-list">
-    <ul>
-      <% unless repo_list.nil? %>
-        <% repo_list.each do |repo| %>
-          <li>
-            <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small></a>
+    <% unless repo_hash.size == 0 %>
+      <ul>
+        <% repo_hash.each do |repo_user, repos| %>
+          <li class="parent"  data-id="<%= repo_user %>" data-name="<%= repo_user %>">
+            <a href=""><%= "#{repo_user}" %></a>
+            <ul>
+              <% repos.each do |repo| %>
+                <li data-id="<%= repo_user %>/<% repo.project_name %>" data-name="<%= repo_user %>/<% repo.project_name %>">
+                  <a href="<%= repo.path %>"><%= "#{repo.project_name}" %> <small>(<%= repo.service %>)</small></a>
+                </li>
+              <% end %>
+            </ul>
           </li>
         <% end %>
-      <% end %>
-    </ul>
+      </ul>
+    <% end %>
   </div>
 </div>
