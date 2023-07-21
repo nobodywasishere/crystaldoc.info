@@ -172,6 +172,56 @@ module CrystalDoc
         )
       end
     end
+
+    def self.get_latest_version(db : Queriable, service : String, username : String, project_name : String) : RepoVersion?
+      db.query_one(
+        "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
+         FROM crystal_doc.repo_version INNER JOIN crystal_doc.repo_latest_version
+         ON repo_version.id = repo_latest_version.latest_version
+         INNER JOIN crystal_doc.repo
+         ON repo.id = repo_latest_version.repo_id
+         WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3",
+        service, username, project_name, as: RepoVersion)
+    end
+
+    def self.get_versions(db : Queriable, service : String, username : String, project_name : String) : Array(RepoVersion)?
+      db.query(
+        "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
+         FROM crystal_doc.repo_version
+         WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3",
+        service, username, project_name,) { |rs| CrystalDoc::RepoVersion.from_rs(rs) }
+    end
+
+    def self.parse_url(repo_url : String) : {service: String, username: String, project_name: String}
+      uri = URI.parse(repo_url).normalize
+      service = CrystalDoc::SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
+      
+      path_fragments = uri.path.split('/')[1..]
+      raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
+
+      username = path_fragments[0]
+      project_name = path_fragments[1]
+
+      { service: service, username: username, project_name: project_name }
+    end
+
+    def self.build_path(service : String, username : String, project_name : String)
+      "/#{service}/#{username}/#{project_name}"
+    end
+
+    def self.build_versions_json(db : Queriable, service : String, username : String, project_name : String)
+      versions = get_versions(db, service, username, project_name)
+      path = build_path(service, username, project_name)
+      {
+        "versions" => versions.map do |version|
+          {
+            "name" => "#{version.commit_id}",
+            "url" => "#{path}/index.html",
+            "released" => !version.nightly
+          }
+        end
+      }.to_json
+    end
   end
 
   class RepoVersion

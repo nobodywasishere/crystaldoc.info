@@ -45,7 +45,7 @@ end
 get "/new_repository" do |env|
   url = env.params.query["repo_url"]
 
-  #TODO: Need to handle URL redirects, is detectable with git ls-remote, just need to parse proper url out of output.  Not sure how to best structure the code.
+  # TODO: Need to handle URL redirects, is detectable with git ls-remote, just need to parse proper url out of output.  Not sure how to best structure the code.
   if !valid_vcs_url?(url)
     "Bad url: #{url}"
   elsif CrystalDoc::Queries.has_repo(url)
@@ -64,7 +64,7 @@ get "/pending_jobs" do |env|
   html = ""
   DB.open(ENV["POSTGRES_DB"]) do |db|
     jobs = CrystalDoc::DocJob.select(db, limit)
-    html = ECR.render("src/crystaldoc/job_table.ecr")
+    html = ECR.render("src/views/job_table.ecr")
   end
   html
 end
@@ -86,7 +86,7 @@ def get_git_versions(repo_url : String, &)
     raise "git ls-remote failed"
   end
   tags_key = "refs/tags/"
-  #stdio.each_line doesn't work for some reason
+  # stdio.each_line doesn't work for some reason, had to convert to string first
   stdout.to_s.each_line do |line|
     split_line = line.split('\t')
     hash = split_line[0]
@@ -97,37 +97,24 @@ def get_git_versions(repo_url : String, &)
   end
 end
 
-def parse_repo_info(repo_url : String) : {service: String, username: String, project_name: String}
-  uri = URI.parse(repo_url).normalize
-  service = CrystalDoc::SERVICE_HOSTS[uri.host] || raise "No known service: #{uri.host}"
-      
-  path_fragments = uri.path.split('/')[1..]
-  raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
-
-  username = path_fragments[0]
-  project_name = path_fragments[1]
-
-  { service: service, username: username, project_name: project_name }
-end
-
 LATEST_PRIORITY = 1000
 HISTORICAL_PRIORITY = -10
 
 def add_new_repo(repo_url : String)
-  repo_info = parse_repo_info(repo_url)
+  repo_info = CrystalDoc::Repo.parse_url(repo_url)
 
   DB.open(ENV["POSTGRES_DB"]) do |db|
     db.transaction do |tx|
       conn = tx.connection
-      #Insert repo into database
+      # Insert repo into database
       repo_id = CrystalDoc::Queries.insert_repo(conn, repo_info[:service], repo_info[:username], repo_info[:project_name], repo_url)
 
-      #Identify repo versions, and add to database
+      # Identify repo versions, and add to database
       versions = Array({id: Int32, normalized_form: SemanticVersion}).new
       get_git_versions(repo_url) do |_, tag|
         normalized_version = SemanticVersion.parse(tag.lchop('v'))
 
-        # don't record version until we've tried to parse the version
+        # Don't record version until we've tried to parse the version
         version_id = CrystalDoc::Queries.insert_version(conn, repo_id, tag)
         versions.push({ id: version_id, normalized_form: normalized_version })
 
@@ -139,7 +126,7 @@ def add_new_repo(repo_url : String)
 
       # Add doc generation jobs to the database queue, prioritized newest to oldest
       versions.each_with_index do |version, index|
-        priority = index == versions.size - 1 ? LATEST_PRIORITY : (versions.size - index) * HISTORICAL_PRIORITY
+        priority = index == versions.size - 1 ? LATEST_PRIORITY : (versions.size - 1 - index) * HISTORICAL_PRIORITY
         CrystalDoc::Queries.insert_doc_job(conn, version[:id], priority)
       end
 
