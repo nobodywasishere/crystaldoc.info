@@ -7,6 +7,8 @@ authors:
 dependencies:
   kemal:
     github: kemalcr/kemal
+  pg:
+    github: will/crystal-pg
   lexbor:
     github: kostya/lexbor
 
