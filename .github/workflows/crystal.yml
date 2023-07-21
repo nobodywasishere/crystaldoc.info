@@ -15,8 +15,8 @@ jobs:
       image: crystallang/crystal
 
     steps:
-    - name: Install cmake
-      run: apt install cmake -y
+    - name: Get cmake
+      uses: lukka/get-cmake@v3.27.0
     - uses: actions/checkout@v3
     - name: Install dependencies
       run: shards install
