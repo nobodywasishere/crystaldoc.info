@@ -17,25 +17,24 @@ module CrystalDoc
       ])
     end
 
-    def self.generate_docs(repo : CrystalDoc::Repository)
-      temp_folder = Path["#{repo.user}-#{repo.proj}"].expand
+    def self.generate_docs(repo : CrystalDoc::Repo)
+      temp_folder = Path["#{repo.username}-#{repo.project_name}"].expand
 
       # clone repo from site
-      unless Process.run("git", ["clone", repo.url, temp_folder.to_s]).success?
-        raise "Failed to clone URL: #{repo.site}"
+      unless Process.run("git", ["clone", repo.source_url, temp_folder.to_s]).success?
+        raise "Failed to clone URL: #{repo.source_url}"
       end
-      # `git clone #{site} "#{user}-#{repo}"`
 
-      `rm -rf "public/#{repo.site}/#{repo.user}/#{repo.proj}"`
+      `rm -rf "public/#{repo.path}"`
 
       # Create public folder if necessary
-      `mkdir -p "public/#{repo.site}/#{repo.user}/#{repo.proj}"`
+      `mkdir -p "public/#{repo.path}"`
 
       # cd into repo
       Dir.cd(temp_folder) do
-        if repo.versions.empty?
-          repo.versions.add(`git describe --tags --abbrev=0`.strip)
-        end
+        # if repo.versions.empty?
+        #   repo.versions.add(`git describe --tags --abbrev=0`.strip)
+        # end
 
         repo.versions.each do |version|
           `git checkout "#{version}"`
@@ -48,16 +47,16 @@ module CrystalDoc
 
           # generate docs using crystal
           # return an error if this fails
-          unless execute_firejail("crystal", ["doc", "--json-config-url=/#{repo.site}/#{repo.user}/#{repo.proj}/versions.json"], temp_folder.to_s).success?
+          unless execute_firejail("crystal", ["doc", "--json-config-url=/#{repo.path}/versions.json"], temp_folder.to_s).success?
             raise "Failed to generate documentation with Crystal"
           end
 
           # copy docs to `/public/:site/:repo/:user` folder
-          `mv "docs" "../public/#{repo.site}/#{repo.user}/#{repo.proj}/#{version}"`
+          `mv "docs" "../public/#{repo.path}/#{version}"`
         end
       end
 
-      "Generated #{repo.site} documentation"
+      "Generated #{repo.path} documentation"
     ensure
       # `rm -rf "#{temp_folder}"`
     end
