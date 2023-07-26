@@ -11,7 +11,7 @@ module CrystalDoc
           db.transaction do |tx|
             CrystalDoc::Queries
               .get_repos(tx.connection)
-              .sort_by{ |r| "#{r.username}/#{r.project_name}" }
+              .sort_by { |r| "#{r.username}/#{r.project_name}" }
           end
         end || [] of CrystalDoc::Repo
 
@@ -67,6 +67,5 @@ module CrystalDoc
       ECR.def_to_s "src/views/css/style.css"
     end
     # End borrowed code
-
   end
 end

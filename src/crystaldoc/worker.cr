@@ -6,15 +6,15 @@ module CrystalDoc
       directory = Path[directory].absolute? ? directory : PROJECT_ROOT / directory
 
       Process.run("firejail", [
-          "--noprofile",
-          "--read-only=#{PROJECT_ROOT}",
-          "--read-write=#{directory}",
-          "--restrict-namespaces",
-          "--rlimit-as=3g",
-          "--timeout=00:15:00",
-          cmd,
-          *args,
-        ],
+        "--noprofile",
+        "--read-only=#{PROJECT_ROOT}",
+        "--read-write=#{directory}",
+        "--restrict-namespaces",
+        "--rlimit-as=3g",
+        "--timeout=00:15:00",
+        cmd,
+        *args,
+      ],
         output: STDOUT, error: STDERR
       )
     end

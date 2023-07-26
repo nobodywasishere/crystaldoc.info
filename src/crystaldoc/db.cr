@@ -185,20 +185,20 @@ module CrystalDoc
         "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
          FROM crystal_doc.repo_version
          WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3",
-        service, username, project_name,) { |rs| CrystalDoc::RepoVersion.from_rs(rs) }
+        service, username, project_name) { |rs| CrystalDoc::RepoVersion.from_rs(rs) }
     end
 
     def self.parse_url(repo_url : String) : {service: String, username: String, project_name: String}
       uri = URI.parse(repo_url).normalize
       service = uri_to_service(uri)
-      
+
       path_fragments = uri.path.split('/')[1..]
       raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
 
       username = path_fragments[0]
       project_name = path_fragments[1]
 
-      { service: service, username: username, project_name: project_name }
+      {service: service, username: username, project_name: project_name}
     end
 
     def self.build_path(service : String, username : String, project_name : String)
@@ -211,11 +211,11 @@ module CrystalDoc
       {
         "versions" => versions.map do |version|
           {
-            "name" => "#{version.commit_id}",
-            "url" => "#{path}/index.html",
-            "released" => !version.nightly
+            "name"     => "#{version.commit_id}",
+            "url"      => "#{path}/index.html",
+            "released" => !version.nightly,
           }
-        end
+        end,
       }.to_json
     end
   end
