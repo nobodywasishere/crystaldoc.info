@@ -79,12 +79,21 @@ module CrystalDoc
         service, username, project_name, as: RepoVersion)
     end
 
-    def self.get_versions(db : Queriable, repo_id : RepoId) : Array(Repo)?
+    def self.get_versions(db : Queriable, repo_id : RepoId) : Array(RepoVersion)?
       CrystalDoc::RepoVersion.from_rs(
         db.query(
           "SELECT repo_version.id, repo_version.repo_id, repo_version.commit_id, repo_version.nightly
            FROM crystal_doc.repo_version
            WHERE repo_id = $1", id))
+    end
+
+    def self.get_recently_added(db : Queriable, count : Int32) : Array(Repo)?
+      CrystalDoc::Repo.from_rs(db.query(<<-SQL))
+        SELECT *
+        FROM crystal_doc.repo
+        ORDER BY id DESC
+        LIMIT 10;
+      SQL
     end
   end
 
@@ -117,6 +126,25 @@ module CrystalDoc
         db.query_one(
           "SELECT * FROM crystal_doc.repo WHERE service = $1 AND username = $2 AND project_name = $3",
           env.params.url["serv"], env.params.url["user"], env.params.url["proj"],
+          as: Repo
+        )
+      end
+    end
+
+    def self.from_url(source_url : String) : Repo?
+      uri = URI.parse(source_url).normalize
+
+      path_fragments = uri.path.split('/')[1..]
+      raise "Invalid url component: #{uri.path}" if path_fragments.size != 2
+
+      service = self.uri_to_service(uri)
+      username = path_fragments[0]
+      project_name = path_fragments[1]
+
+      DB.open(ENV["POSTGRES_DB"]) do |db|
+        db.query_one(
+          "SELECT * FROM crystal_doc.repo WHERE service = $1 AND username = $2 AND project_name = $3",
+          service, username, project_name,
           as: Repo
         )
       end

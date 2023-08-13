@@ -3,16 +3,10 @@
 <html>
 <head>
   <link href="/css/style.css" rel="stylesheet">
-  <script type="text/javascript" src="/js/doc.js"></script>
 
   <title>CrystalDoc.info - Crystal Shard Documentation</title>
 </head>
 <body>
-
-  <%= CrystalDoc::Views::SVG_DEFS %>
-  <%= CrystalDoc::Views::SIDEBAR_BUTTON %>
-  <%= CrystalDoc::Views::Sidebar.new.to_s %>
-
   <div class="main-content">
     <%= content %>
   </div>

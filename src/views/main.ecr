@@ -1,15 +1,49 @@
-<h1>Crystal Shards Documentation</h1>
+<h1>Crystal Shards API Documentation</h1>
 
-<p>This is a website for documentation of various shards for the Crystal programming language. It is similar in idea and function to <a href="https://rubydoc.info/">rubydoc.info</a>. All the documentation on this site is generated using Crystal's built-in documentation generation tool.</p>
+<p>This is a website for documentation of various shards for the Crystal programming language. It is similar in idea and
+  function to <a href="https://rubydoc.info/">rubydoc.info</a>. All the documentation on this site is generated using
+  Crystal's built-in documentation generation tool. The source code is available <a href="https://github.com/nobodywasishere/crystaldoc.info">here</a>.</p>
+
+<h2>Recently Added</h2>
+
+<ul>
+  <% DB.open(ENV["POSTGRES_DB"]) do |db| %>
+    <% CrystalDoc::Queries.get_recently_added(db, 10).each do |repo| %>
+      <li>
+        <a href="<%= repo.path %>">
+          <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
+        </a>
+      </li>
+    <% end %>
+  <% end %>
+</ul>
+
+<h2>Most Popular</h2>
+
+<ul>
+  <% DB.open(ENV["POSTGRES_DB"]) do |db| %>
+    <% CrystalDoc::Queries.get_recently_added(db, 10).each do |repo| %>
+      <li>
+        <a href="<%= repo.path %>">
+          <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
+        </a>
+      </li>
+    <% end %>
+  <% end %>
+</ul>
 
 <h2>Adding a shard</h2>
 
-<p>CrystalDoc.info supports any publicly available git hosting service, as long as it matches the format <code>domain.tld/username/project_name</code>.</p>
+<p>CrystalDoc.info supports any publicly available git hosting service, as long as it matches the format
+  <code>domain.tld/username/project_name</code>.
+</p>
 
 <form action="/new_repository" method="post" class="form-example">
   <label for="name">Repository url: </label>
-  <input type="url" name="url" id="url" placeholder="https://github.com/username/project" pattern="https://.*" size="30" required>
+  <input type="url" name="url" id="url" placeholder="https://github.com/username/project" pattern="https://.*" size="30"
+    required>
   <input type="submit" value="Add repo!">
 </form>
 
-<p>You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter pointing to the repository URL.</p>
+<p>You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter
+  pointing to the repository URL.</p>

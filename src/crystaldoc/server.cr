@@ -6,9 +6,7 @@ require "ecr"
 
 # Need to create the doc.js
 Dir.mkdir_p("public/css", 0o744)
-Dir.mkdir_p("public/js", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
-File.write "public/js/doc.js", CrystalDoc::Views::JsTypeTemplate.new
 
 get "/" do
   render "src/views/main.ecr", "src/views/layouts/layout.ecr"
@@ -66,6 +64,16 @@ post "/new_repository" do |env|
   #   "Repository failed to be created: #{ex}"
 end
 
+post "/refresh_versions" do |env|
+  url = env.params.body["url"].as(String)
+  if !valid_vcs_url?(url)
+    "Bad url: #{url}"
+  else
+    refresh_versions(url)
+    "Versions refreshed"
+  end
+end
+
 get "/pending_jobs" do |env|
   limit = env.params.query["limit"]?.try &.to_i32
 
@@ -80,17 +88,17 @@ end
 Kemal.run
 
 def valid_vcs_url?(repo_url : String) : Bool
-  git_ls_remote(repo_url)
+  git_ls_remote(STDOUT, args: [repo_url])
   # Mercurial - hg identify
 end
 
-def git_ls_remote(repo_url : String, output : Process::Stdio = Process::Redirect::Close) : Bool
-  Process.run("git", ["ls-remote", repo_url], output: output).success?
+def git_ls_remote(output : Process::Stdio = Process::Redirect::Close, args : Array(String) = [] of String) : Bool
+  Process.run("git", ["ls-remote", *args], output: output).success?
 end
 
 def get_git_versions(repo_url : String, &)
   stdout = IO::Memory.new
-  unless git_ls_remote(repo_url, stdout)
+  unless git_ls_remote(stdout, [repo_url])
     raise "git ls-remote failed"
   end
   tags_key = "refs/tags/"
@@ -105,6 +113,14 @@ def get_git_versions(repo_url : String, &)
   end
 end
 
+def get_git_main_branch(repo_url : String) : String?
+  stdout = IO::Memory.new
+  unless git_ls_remote(stdout, ["--symref", repo_url, "HEAD"])
+    raise "git ls-remote failed"
+  end
+  stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
+end
+
 LATEST_PRIORITY     = 1000
 HISTORICAL_PRIORITY =  -10
 
@@ -116,6 +132,12 @@ def add_new_repo(repo_url : String)
       conn = tx.connection
       # Insert repo into database
       repo_id = CrystalDoc::Queries.insert_repo(conn, repo_info[:service], repo_info[:username], repo_info[:project_name], repo_url)
+
+      nightly_version = get_git_main_branch(repo_url)
+      nightly_version_id = nil
+      if nightly_version
+        nightly_version_id = CrystalDoc::Queries.insert_version(conn, repo_id, nightly_version, nightly: true)
+      end
 
       # Identify repo versions, and add to database
       versions = Array({id: Int32, normalized_form: SemanticVersion}).new
@@ -140,10 +162,51 @@ def add_new_repo(repo_url : String)
       # Record latest repo version
       if versions.size > 0
         CrystalDoc::Queries.upsert_latest_version(conn, repo_id, versions[-1][:id])
+      elsif nightly_version && nightly_version_id
+        CrystalDoc::Queries.upsert_latest_version(conn, repo_id, nightly_version_id)
       end
 
       # Update the repo status (records the last time the repo was processed)
       CrystalDoc::Queries.upsert_repo_status(conn, repo_id)
+    end
+  end
+end
+
+def refresh_versions(repo_url : String)
+  repo = CrystalDoc::Repo.from_url(repo_url)
+
+  if repo.nil?
+    raise "No such repo for #{repo_url}"
+  end
+
+  DB.open(ENV["POSTGRES_DB"]) do |db|
+    db.transaction do |tx|
+      conn = tx.connection
+
+      # Identify repo versions, and add to database
+      current_versions = repo.versions
+
+      if nightly_version = get_git_main_branch(repo_url)
+        if current_versions.none? { |cv| cv.commit_id == nightly_version }
+          CrystalDoc::Queries.insert_version(conn, repo.id, nightly_version, nightly: true)
+        end
+      end
+
+      new_versions = Array({id: Int32, normalized_form: SemanticVersion}).new
+      get_git_versions(repo_url) do |_, tag|
+        if current_versions.any? { |cv| cv.commit_id == tag }
+          puts "#{repo.username}/#{repo.project_name}: Version exists already #{tag}"
+          next
+        end
+
+        normalized_version = SemanticVersion.parse(tag.lchop('v'))
+
+        # Don't record version until we've tried to parse the version
+        version_id = CrystalDoc::Queries.insert_version(conn, repo.id, tag)
+        new_versions.push({id: version_id, normalized_form: normalized_version})
+      rescue ArgumentError
+        puts "Unknown version format \"#{tag}\" from repo \"#{repo_url}\""
+      end
     end
   end
 end
