@@ -74,6 +74,11 @@ post "/refresh_versions" do |env|
   end
 end
 
+post "/search" do |env|
+  p query = env.params.body["q"]
+  render "src/views/results.ecr"
+end
+
 get "/pending_jobs" do |env|
   limit = env.params.query["limit"]?.try &.to_i32
 
@@ -93,7 +98,7 @@ def valid_vcs_url?(repo_url : String) : Bool
 end
 
 def git_ls_remote(output : Process::Stdio = Process::Redirect::Close, args : Array(String) = [] of String) : Bool
-  Process.run("git", ["ls-remote", *args], output: output).success?
+  Process.run("git", ["ls-remote", *args], output: output, env: {"GIT_TERMINAL_PROMPT" => "0"}).success?
 end
 
 def get_git_versions(repo_url : String, &)
