@@ -23,7 +23,7 @@ module CrystalDoc
       temp_folder = Path["#{repo.username}-#{repo.project_name}-#{version.commit_id}"].expand
 
       # clone repo from site
-      unless Process.run("git", ["clone", repo.source_url, temp_folder.to_s], output: STDOUT, error: STDERR).success?
+      unless Process.run("git", ["clone", repo.source_url, temp_folder.to_s], output: STDOUT, error: STDERR, env: {"GIT_TERMINAL_PROMPT" => "0"}).success?
         raise "Failed to clone URL: #{repo.source_url}"
       end
 
@@ -35,7 +35,7 @@ module CrystalDoc
         return "Documentation already exists" if File.exists? "../public#{repo.path}/#{version.commit_id}"
 
         p version
-        `git checkout --force "#{version.commit_id}"`
+        `GIT_TERMINAL_PROMPT=0 git checkout --force "#{version.commit_id}"`
 
         # shards install to install dependencies
         # return an error if this fails

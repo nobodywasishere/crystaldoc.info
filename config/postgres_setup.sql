@@ -50,3 +50,5 @@ CREATE TABLE doc_job (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON doc_job TO crystal_doc_server;
+
+CREATE EXTENSION fuzzystrmatch;

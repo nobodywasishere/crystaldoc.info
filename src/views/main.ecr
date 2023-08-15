@@ -2,7 +2,16 @@
 
 <p>This is a website for documentation of various shards for the Crystal programming language. It is similar in idea and
   function to <a href="https://rubydoc.info/">rubydoc.info</a>. All the documentation on this site is generated using
-  Crystal's built-in documentation generation tool. The source code is available <a href="https://github.com/nobodywasishere/crystaldoc.info">here</a>.</p>
+  Crystal's built-in documentation generation tool. The source code is available <a
+    href="https://github.com/nobodywasishere/crystaldoc.info">here</a>.</p>
+
+<form>
+  <div>
+    <input type="search" id="search-box" name="q" placeholder="Search shards..." hx-post="/search"
+      hx-trigger="keyup changed delay:500ms" hx-target="#search-results" />
+  </div>
+  <div id="search-results"></div>
+</form>
 
 <h2>Recently Added</h2>
 
@@ -35,15 +44,20 @@
 <h2>Adding a shard</h2>
 
 <p>CrystalDoc.info supports any publicly available git hosting service, as long as it matches the format
-  <code>domain.tld/username/project_name</code>.
+  <code>domain.tld/username/project_name</code>. You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter
+  pointing to the repository URL.
 </p>
 
-<form action="/new_repository" method="post" class="form-example">
-  <label for="name">Repository url: </label>
-  <input type="url" name="url" id="url" placeholder="https://github.com/username/project" pattern="https://.*" size="30"
-    required>
-  <input type="submit" value="Add repo!">
+<form method="post" hx-post="/new_repository" hx-target="#new-repository-results">
+  <div>
+    <label for="name">Repository url: </label>
+    <input type="url" name="url" id="url" placeholder="https://github.com/username/project" pattern="https://.*" size="30"
+      required>
+    <input type="submit" value="Add repo!">
+  </div>
+  <div id="new-repository-results"></div>
 </form>
 
-<p>You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter
-  pointing to the repository URL.</p>
+<script>
+
+</script>

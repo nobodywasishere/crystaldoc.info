@@ -95,6 +95,16 @@ module CrystalDoc
         LIMIT 10;
       SQL
     end
+
+    def self.get_query(db : Queriable, query : String) : Array(Repo)?
+      CrystalDoc::Repo.from_rs(db.query(<<-SQL, query))
+        SELECT *
+        FROM crystal_doc.repo
+        WHERE levenshtein(repo.username, $1) <= 10 OR levenshtein(repo.project_name, $1) <= 10
+        ORDER BY levenshtein(repo.project_name, $1)
+        LIMIT 10;
+      SQL
+    end
   end
 
   class Repo
