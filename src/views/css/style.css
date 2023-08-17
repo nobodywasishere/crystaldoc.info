@@ -8,6 +8,7 @@ body {
 }
 
 body {
+  font-size: 18px;
   font-family: "Avenir", "Tahoma", "Lucida Sans", "Lucida Grande", Verdana, Arial, sans-serif;
   color: #333;
   line-height: 1.5;
@@ -15,6 +16,27 @@ body {
 
 a {
   color: #263F6C;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  margin: 0;
+  border: 1px solid #ccc;
+}
+
+li>a {
+  display: block;
+  padding: 10px;
+  transition: box-shadow 0.3s ease;
+  text-decoration: none;
+}
+
+li>a:hover {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
 }
 
 a:visited {
@@ -70,6 +92,21 @@ img {
   max-width: 100%;
 }
 
+form {
+  margin: 20px 0;
+}
+
+form div {
+  position: relative;
+}
+
+#search-box {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -115,5 +152,13 @@ img {
     color: white;
     background: #202020;
     border: 1px solid #353535;
+  }
+
+  li {
+    border: 1px solid #353535;
+  }
+
+  li>a:hover {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
   }
 }
