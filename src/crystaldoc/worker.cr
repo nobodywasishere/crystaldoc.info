@@ -34,7 +34,6 @@ module CrystalDoc
       Dir.cd(temp_folder) do
         return "Documentation already exists" if File.exists? "../public#{repo.path}/#{version.commit_id}"
 
-        p version
         `GIT_TERMINAL_PROMPT=0 git checkout --force "#{version.commit_id}"`
 
         # shards install to install dependencies

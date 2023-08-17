@@ -75,7 +75,7 @@ post "/refresh_versions" do |env|
 end
 
 post "/search" do |env|
-  p query = env.params.body["q"]
+  query = env.params.body["q"]
   render "src/views/results.ecr"
 end
 
