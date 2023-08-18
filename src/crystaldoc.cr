@@ -3,6 +3,7 @@ module CrystalDoc
 end
 
 require "./crystaldoc/db"
+require "./crystaldoc/html"
 require "./crystaldoc/worker"
 require "./crystaldoc/server"
 require "./crystaldoc/views"
