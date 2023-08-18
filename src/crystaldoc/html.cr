@@ -9,18 +9,14 @@ module CrystalDoc
     def self.post_process(path : String, &)
       Dir.cd(path) do
         Dir.glob("**/*.html").each do |file_path|
-          file = File.open(file_path, mode: "r")
-          html = Lexbor::Parser.new(file)
-          file.close
-
-          yield html, file_path
-          modified = html.to_html
-
-          file = File.open(file_path, mode: "w")
-          file.print modified
-          file.close
-        ensure
-          file.try &.close
+          File.open(file_path, mode: "r+") do |file|
+            html = Lexbor::Parser.new(file)
+            yield html, file_path
+            modified = html.to_html
+            file.rewind
+            file.truncate
+            file.print modified
+          end
         end
       end
     end
