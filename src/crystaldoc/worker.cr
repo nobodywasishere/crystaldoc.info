@@ -36,6 +36,8 @@ module CrystalDoc
 
         `GIT_TERMINAL_PROMPT=0 git checkout --force "#{version.commit_id}"`
 
+        `rm -rf docs`
+
         # shards install to install dependencies
         # return an error if this fails
         unless execute_firejail("shards", ["install", "--without-development", "--skip-postinstall", "--skip-executables"], temp_folder.to_s).success?
@@ -44,8 +46,22 @@ module CrystalDoc
 
         # generate docs using crystal
         # return an error if this fails
-        unless execute_firejail("crystal", ["doc", "--json-config-url=#{repo.path}/versions.json"], temp_folder.to_s).success?
+        unless execute_firejail("crystal", ["doc", "--json-config-url=#{repo.path}/versions.json", "--source-refname='#{version.commit_id}'"], temp_folder.to_s).success?
           raise "Failed to generate documentation with Crystal"
+        end
+
+        CrystalDoc::Html.post_process("docs") do |html, file_path|
+          sidebar_header = html.css(".sidebar-header").first
+          sidebar_search_box = sidebar_header.css(".search-box").first
+          sidebar_project_summary = sidebar_header.css(".project-summary").first
+
+          sidebar_header.inner_html = <<-HTML + sidebar_search_box.to_html + sidebar_project_summary.to_html
+          <div>
+            <h1 style="padding: 9px 15px 9px 30px; margin: 8px 0 0 0; color: #F8F4FD">
+              <a href="/">CrystalDoc.info</a>
+            </h1>
+          </div>
+          HTML
         end
 
         # copy docs to `/public/:site/:repo/:user` folder
