@@ -46,7 +46,7 @@ module CrystalDoc
 
         # generate docs using crystal
         # return an error if this fails
-        unless execute_firejail("crystal", ["doc", "--json-config-url=#{repo.path}/versions.json", "--source-refname='#{version.commit_id}'"], temp_folder.to_s).success?
+        unless execute_firejail("crystal", ["doc", "--json-config-url=#{repo.path}/versions.json", "--source-refname=#{version.commit_id}"], temp_folder.to_s).success?
           raise "Failed to generate documentation with Crystal"
         end
 
