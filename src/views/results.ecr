@@ -1,11 +1,9 @@
 <ul>
-  <% DB.open(ENV["POSTGRES_DB"]) do |db| %>
-    <% CrystalDoc::Queries.get_query(db, query).each do |repo| %>
-      <li>
-        <a href="<%= repo.path %>">
-          <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
-        </a>
-      </li>
-    <% end %>
+  <% CrystalDoc::Repo.find(db, query).each do |repo| %>
+    <li>
+      <a href="<%= repo.path %>">
+        <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
+      </a>
+    </li>
   <% end %>
 </ul>

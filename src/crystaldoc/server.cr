@@ -8,19 +8,19 @@ require "ecr"
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
 
-get "/" do
-  render "src/views/main.ecr", "src/views/layouts/layout.ecr"
-end
+DB.open(ENV["POSTGRES_DB"]) do |db|
+  get "/" do
+    render "src/views/main.ecr", "src/views/layouts/layout.ecr"
+  end
 
-get "/:serv/:user/:proj" do |env|
-  repo = CrystalDoc::Repo.from_kemal_env(env)
-  env.redirect "#{repo.path}/latest"
-end
+  get "/:serv/:user/:proj" do |env|
+    repo = CrystalDoc::Repo.from_kemal_env(db, env)
+    env.redirect "#{repo.path}/latest"
+  end
 
-get "/:serv/:user/:proj/latest" do |env|
-  DB.open(ENV["POSTGRES_DB"]) do |db|
+  get "/:serv/:user/:proj/latest" do |env|
     db.transaction do |tx|
-      latest_version = CrystalDoc::Queries.get_latest_version(db,
+      latest_version = CrystalDoc::RepoVersion.latest(db,
         env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
       )
 
@@ -29,189 +29,63 @@ get "/:serv/:user/:proj/latest" do |env|
       end
     end
   end
-end
 
-get "/:serv/:user/:proj/versions.json" do |env|
-  repo = CrystalDoc::Repo.from_kemal_env(env)
-  unless repo.nil?
-    repo.versions_to_json
-  end
-end
-
-get "/:serv/:user/:proj/:version/" do |env|
-  repo = CrystalDoc::Repo.from_kemal_env(env)
-  version = CrystalDoc::RepoVersion.find(repo.id, env.params.url["version"])
-  unless repo.nil? || version.nil? || File.exists?("public#{repo.path}/#{env.params.url["version"]}")
-    CrystalDoc::Worker.generate_docs(repo, version)
+  get "/:serv/:user/:proj/versions.json" do |env|
+    repo = CrystalDoc::Repo.from_kemal_env(db, env)
+    unless repo.nil?
+      repo.versions_to_json(db)
+    end
   end
 
-  env.redirect("#{repo.path}/#{version.commit_id}/index.html")
-end
+  get "/:serv/:user/:proj/:version/" do |env|
+    repo = CrystalDoc::Repo.from_kemal_env(db, env)
+    version = CrystalDoc::RepoVersion.find(db, repo.id, env.params.url["version"])
+    unless repo.nil? || version.nil? || File.exists?("public#{repo.path}/#{env.params.url["version"]}")
+      CrystalDoc::Worker.generate_docs(repo, version)
+    end
 
-post "/new_repository" do |env|
-  url = env.params.body["url"].as(String)
-
-  # TODO: Need to handle URL redirects, is detectable with git ls-remote, just need to parse proper url out of output.  Not sure how to best structure the code.
-  if !valid_vcs_url?(url)
-    "Bad url: #{url}"
-  elsif CrystalDoc::Queries.has_repo(url)
-    "Docs already exist"
-  else
-    add_new_repo(url)
-    "Repo added to database"
+    env.redirect("#{repo.path}/#{version.commit_id}/index.html")
   end
-  # rescue ex
-  #   "Repository failed to be created: #{ex}"
-end
 
-post "/refresh_versions" do |env|
-  url = env.params.body["url"].as(String)
-  if !valid_vcs_url?(url)
-    "Bad url: #{url}"
-  else
-    refresh_versions(url)
-    "Versions refreshed"
+  post "/new_repository" do |env|
+    url = env.params.body["url"].as(String)
+
+    # TODO: Need to handle URL redirects, is detectable with git ls-remote, just need to parse proper url out of output.  Not sure how to best structure the code.
+    if !CrystalDoc::Git.valid_vcs_url?(url)
+      "Bad url: #{url}"
+    elsif CrystalDoc::Repo.exists(db, url)
+      "Docs already exist"
+    else
+      CrystalDoc::Repo.add_new_repo(db, url)
+      "Repo added to database"
+    end
+    # rescue ex
+    #   "Repository failed to be created: #{ex}"
   end
-end
 
-post "/search" do |env|
-  query = env.params.body["q"]
-  render "src/views/results.ecr"
-end
+  post "/refresh_versions" do |env|
+    url = env.params.body["url"].as(String)
+    if !CrystalDoc::Git.valid_vcs_url?(url)
+      "Bad url: #{url}"
+    else
+      CrystalDoc::Repo.refresh_versions(db, url)
+      "Versions refreshed"
+    end
+  end
 
-get "/pending_jobs" do |env|
-  limit = env.params.query["limit"]?.try &.to_i32
+  post "/search" do |env|
+    query = env.params.body["q"]
+    render "src/views/results.ecr"
+  end
 
-  html = ""
-  DB.open(ENV["POSTGRES_DB"]) do |db|
+  get "/pending_jobs" do |env|
+    limit = env.params.query["limit"]?.try &.to_i32
+
+    html = ""
     jobs = CrystalDoc::DocJob.select(db, limit)
     html = ECR.render("src/views/job_table.ecr")
+    html
   end
-  html
 end
 
 Kemal.run
-
-def valid_vcs_url?(repo_url : String) : Bool
-  git_ls_remote(STDOUT, args: [repo_url])
-  # Mercurial - hg identify
-end
-
-def git_ls_remote(output : Process::Stdio = Process::Redirect::Close, args : Array(String) = [] of String) : Bool
-  Process.run("git", ["ls-remote", *args], output: output, env: {"GIT_TERMINAL_PROMPT" => "0"}).success?
-end
-
-def get_git_versions(repo_url : String, &)
-  stdout = IO::Memory.new
-  unless git_ls_remote(stdout, [repo_url])
-    raise "git ls-remote failed"
-  end
-  tags_key = "refs/tags/"
-  # stdio.each_line doesn't work for some reason, had to convert to string first
-  stdout.to_s.each_line do |line|
-    split_line = line.split('\t')
-    hash = split_line[0]
-    tag = split_line[1].lchop?(tags_key)
-    unless tag.nil?
-      yield hash, tag
-    end
-  end
-end
-
-def get_git_main_branch(repo_url : String) : String?
-  stdout = IO::Memory.new
-  unless git_ls_remote(stdout, ["--symref", repo_url, "HEAD"])
-    raise "git ls-remote failed"
-  end
-  stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
-end
-
-LATEST_PRIORITY     = 1000
-HISTORICAL_PRIORITY =  -10
-
-def add_new_repo(repo_url : String)
-  repo_info = CrystalDoc::Repo.parse_url(repo_url)
-
-  DB.open(ENV["POSTGRES_DB"]) do |db|
-    db.transaction do |tx|
-      conn = tx.connection
-      # Insert repo into database
-      repo_id = CrystalDoc::Queries.insert_repo(conn, repo_info[:service], repo_info[:username], repo_info[:project_name], repo_url)
-
-      nightly_version = get_git_main_branch(repo_url)
-      nightly_version_id = nil
-      if nightly_version
-        nightly_version_id = CrystalDoc::Queries.insert_version(conn, repo_id, nightly_version, nightly: true)
-      end
-
-      # Identify repo versions, and add to database
-      versions = Array({id: Int32, normalized_form: SemanticVersion}).new
-      get_git_versions(repo_url) do |_, tag|
-        normalized_version = SemanticVersion.parse(tag.lchop('v'))
-
-        # Don't record version until we've tried to parse the version
-        version_id = CrystalDoc::Queries.insert_version(conn, repo_id, tag)
-        versions.push({id: version_id, normalized_form: normalized_version})
-      rescue ArgumentError
-        puts "Unknown version format \"#{tag}\" from repo \"#{repo_url}\""
-      end
-
-      versions = versions.sort_by { |version| version[:normalized_form] }
-
-      # Add doc generation jobs to the database queue, prioritized newest to oldest
-      versions.each_with_index do |version, index|
-        priority = index == versions.size - 1 ? LATEST_PRIORITY : (versions.size - 1 - index) * HISTORICAL_PRIORITY
-        CrystalDoc::Queries.insert_doc_job(conn, version[:id], priority)
-      end
-
-      # Record latest repo version
-      if versions.size > 0
-        CrystalDoc::Queries.upsert_latest_version(conn, repo_id, versions[-1][:id])
-      elsif nightly_version && nightly_version_id
-        CrystalDoc::Queries.upsert_latest_version(conn, repo_id, nightly_version_id)
-      end
-
-      # Update the repo status (records the last time the repo was processed)
-      CrystalDoc::Queries.upsert_repo_status(conn, repo_id)
-    end
-  end
-end
-
-def refresh_versions(repo_url : String)
-  repo = CrystalDoc::Repo.from_url(repo_url)
-
-  if repo.nil?
-    raise "No such repo for #{repo_url}"
-  end
-
-  DB.open(ENV["POSTGRES_DB"]) do |db|
-    db.transaction do |tx|
-      conn = tx.connection
-
-      # Identify repo versions, and add to database
-      current_versions = repo.versions
-
-      if nightly_version = get_git_main_branch(repo_url)
-        if current_versions.none? { |cv| cv.commit_id == nightly_version }
-          CrystalDoc::Queries.insert_version(conn, repo.id, nightly_version, nightly: true)
-        end
-      end
-
-      new_versions = Array({id: Int32, normalized_form: SemanticVersion}).new
-      get_git_versions(repo_url) do |_, tag|
-        if current_versions.any? { |cv| cv.commit_id == tag }
-          puts "#{repo.username}/#{repo.project_name}: Version exists already #{tag}"
-          next
-        end
-
-        normalized_version = SemanticVersion.parse(tag.lchop('v'))
-
-        # Don't record version until we've tried to parse the version
-        version_id = CrystalDoc::Queries.insert_version(conn, repo.id, tag)
-        new_versions.push({id: version_id, normalized_form: normalized_version})
-      rescue ArgumentError
-        puts "Unknown version format \"#{tag}\" from repo \"#{repo_url}\""
-      end
-    end
-  end
-end
