@@ -7,6 +7,16 @@ module CrystalDoc
     struct StyleTemplate
       ECR.def_to_s "src/views/css/style.css"
     end
-    # End borrowed code
+
+    class BuildFailureTemplate
+      def initialize(@repo : CrystalDoc::Repo)
+      end
+
+      ECR.def_to_s "src/views/layouts/layout.ecr"
+
+      def content
+        ECR.render("src/views/build_failure.ecr")
+      end
+    end
   end
 end
