@@ -101,6 +101,9 @@ class CrystalDoc::Repo
       # Identify repo versions, and add to database
       versions = Array({id: Int32}).new
       CrystalDoc::Git.versions(repo_url) do |_, tag|
+        # Skip unallowed tags
+        next if tag.nil? || /[^a-zA-Z0-9\.\-_]/.match(tag)
+
         version_id = CrystalDoc::RepoVersion.create(conn, repo.id, tag)
         versions.push({id: version_id})
       rescue ArgumentError

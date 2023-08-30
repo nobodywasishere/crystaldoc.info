@@ -1,6 +1,6 @@
 module CrystalDoc::Git
   def self.valid_vcs_url?(repo_url : String) : Bool
-    ls_remote(STDOUT, args: [repo_url])
+    ls_remote(args: [repo_url])
     # Mercurial - hg identify
   end
 

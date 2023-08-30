@@ -6,8 +6,6 @@ class CrystalDoc::StatsHandler < Kemal::Handler
   end
 
   def call(context)
-    p context.request.path
-
     unless (repo = CrystalDoc::Repo.from_request(@db, context.request)).nil?
       CrystalDoc::RepoStatistics.increment(@db, repo.id)
     end
