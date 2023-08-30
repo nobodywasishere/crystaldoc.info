@@ -99,18 +99,13 @@ class CrystalDoc::Repo
       end
 
       # Identify repo versions, and add to database
-      versions = Array({id: Int32, normalized_form: SemanticVersion}).new
+      versions = Array({id: Int32}).new
       CrystalDoc::Git.versions(repo_url) do |_, tag|
-        normalized_version = SemanticVersion.parse(tag.lchop('v'))
-
-        # Don't record version until we've tried to parse the version
         version_id = CrystalDoc::RepoVersion.create(conn, repo.id, tag)
-        versions.push({id: version_id, normalized_form: normalized_version})
+        versions.push({id: version_id})
       rescue ArgumentError
         puts "Unknown version format \"#{tag}\" from repo \"#{repo_url}\""
       end
-
-      versions = versions.sort_by { |version| version[:normalized_form] }
 
       # Add doc generation jobs to the database queue, prioritized newest to oldest
       versions.each_with_index do |version, index|
@@ -180,24 +175,6 @@ class CrystalDoc::Repo
     {service: service, username: username, project_name: project_name}
   end
 
-  def self.build_path(service : String, username : String, project_name : String)
-    "/#{service}/#{username}/#{project_name}"
-  end
-
-  def self.versions_json(db : Queriable, service : String, username : String, project_name : String)
-    versions = get_versions(db, service, username, project_name)
-    path = build_path(service, username, project_name)
-    {
-      "versions" => versions.map do |version|
-        {
-          "name"     => "#{version.commit_id}",
-          "url"      => "#{path}/index.html",
-          "released" => !version.nightly,
-        }
-      end,
-    }.to_json
-  end
-
   def self.upsert_repo_status(db : Queriable, repo_id : RepoId)
     db.exec(<<-SQL, repo_id)
       INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
@@ -219,7 +196,7 @@ class CrystalDoc::Repo
       SELECT *
       FROM crystal_doc.repo
       WHERE levenshtein(repo.username, $1) <= 10 OR levenshtein(repo.project_name, $1) <= 10
-      ORDER BY levenshtein(repo.project_name, $1)
+      ORDER BY LEAST(levenshtein(repo.username, $1), levenshtein(repo.project_name, $1))
       LIMIT 10;
     SQL
   end
@@ -250,15 +227,24 @@ class CrystalDoc::Repo
     )
   end
 
-  def versions_to_json(db : Queriable)
+  def versions_json(db : Queriable)
+    repo_versions = versions(db)
+
+    # Put any nightly versions first
     {
-      "versions" => versions(db).reverse.map do |version|
+      "versions" => repo_versions.select { |v| v.nightly }.map { |version|
         {
           "name"     => "#{version.commit_id}",
           "url"      => "#{path}/#{version.commit_id}/",
           "released" => !version.nightly,
         }
-      end,
+      } | repo_versions.select { |v| !v.nightly }.reverse.map { |version|
+        {
+          "name"     => "#{version.commit_id}",
+          "url"      => "#{path}/#{version.commit_id}/",
+          "released" => !version.nightly,
+        }
+      },
     }.to_json
   end
 

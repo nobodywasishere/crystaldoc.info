@@ -37,7 +37,7 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
   get "/:serv/:user/:proj/versions.json" do |env|
     repo = CrystalDoc::Repo.from_kemal_env(db, env)
     unless repo.nil?
-      repo.versions_to_json(db)
+      repo.versions_json(db)
     end
   end
 
