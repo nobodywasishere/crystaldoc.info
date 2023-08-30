@@ -79,7 +79,7 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
 
   post "/search" do |env|
     query = env.params.body["q"]
-    render "src/views/results.ecr"
+    render "src/views/results.ecr" unless query == ""
   end
 
   get "/pending_jobs" do |env|

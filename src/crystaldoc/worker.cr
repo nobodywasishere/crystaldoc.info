@@ -57,7 +57,7 @@ module CrystalDoc
 
           sidebar_header.inner_html = <<-HTML + sidebar_search_box.to_html + sidebar_project_summary.to_html
           <div>
-            <h1 style="padding: 9px 15px 9px 30px; margin: 8px 0 0 0; color: #F8F4FD">
+            <h1 class="project-name" style="padding: 9px 15px 9px 30px; margin: 8px 0 0 0; color: #F8F4FD">
               <a href="/">CrystalDoc.info</a>
             </h1>
           </div>
@@ -67,6 +67,11 @@ module CrystalDoc
         # copy docs to `/public/:site/:repo/:user` folder
         `mv "docs" "../public#{repo.path}/#{version.commit_id}"`
       rescue ex
+        `rm -rf "../public#{repo.path}/#{version.commit_id}"`
+        `mkdir -p "../public#{repo.path}/#{version.commit_id}"`
+        File.write "../public#{repo.path}/#{version.commit_id}/index.html",
+          CrystalDoc::Views::BuildFailureTemplate.new(repo)
+
         return "Failed to generate documentation for #{repo.path}: #{ex}"
       end
 
