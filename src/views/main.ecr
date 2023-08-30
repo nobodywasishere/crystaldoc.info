@@ -16,7 +16,7 @@
 <h2>Recently Added</h2>
 
 <ul>
-  <% CrystalDoc::Repo.recently_added(db, 10).each do |repo| %>
+  <% CrystalDoc::Repo.recently_added(db).each do |repo| %>
     <li>
       <a href="<%= repo.path %>">
         <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
@@ -28,7 +28,7 @@
 <h2>Most Popular</h2>
 
 <ul>
-  <% CrystalDoc::Repo.recently_added(db, 10).each do |repo| %>
+  <% CrystalDoc::Repo.most_popular(db).each do |repo| %>
     <li>
       <a href="<%= repo.path %>">
         <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
