@@ -26,6 +26,18 @@ class CrystalDoc::Repo
     )
   end
 
+  def self.from_request(db : Queriable, request : HTTP::Request) : Repo?
+    if (split_path = request.path.split("/")).size < 4
+      return nil
+    end
+
+    db.query_one(<<-SQL, split_path[1], split_path[2], split_path[3], as: Repo)
+      SELECT *
+      FROM crystal_doc.repo
+      WHERE service = $1 AND username = $2 AND project_name = $3
+    SQL
+  end
+
   def self.exists(db : Queriable, repo_url : String) : Bool
     db.scalar(
       "SELECT EXISTS(SELECT 1 FROM crystal_doc.repo WHERE repo.source_url = $1)",
@@ -212,11 +224,22 @@ class CrystalDoc::Repo
     SQL
   end
 
-  def self.recently_added(db : Queriable, count : Int32) : Array(Repo)?
+  def self.recently_added(db : Queriable) : Array(Repo)?
     CrystalDoc::Repo.from_rs(db.query(<<-SQL))
       SELECT *
       FROM crystal_doc.repo
       ORDER BY id DESC
+      LIMIT 10;
+    SQL
+  end
+
+  def self.most_popular(db : Queriable) : Array(Repo)?
+    CrystalDoc::Repo.from_rs(db.query(<<-SQL))
+      SELECT crystal_doc.repo.*
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_statistics
+        ON crystal_doc.repo.id = crystal_doc.repo_statistics.repo_id
+      ORDER BY crystal_doc.repo_statistics.count DESC
       LIMIT 10;
     SQL
   end

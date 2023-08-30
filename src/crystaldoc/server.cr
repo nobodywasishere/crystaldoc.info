@@ -4,11 +4,15 @@ require "pg"
 require "semantic_version"
 require "ecr"
 
+require "./stats_handler"
+
 # Need to create the doc.js
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
 
 DB.open(ENV["POSTGRES_DB"]) do |db|
+  add_handler CrystalDoc::StatsHandler.new(db)
+
   get "/" do
     render "src/views/main.ecr", "src/views/layouts/layout.ecr"
   end

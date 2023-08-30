@@ -10,6 +10,7 @@ module CrystalDoc
 end
 
 require "./objects/doc_job"
+require "./objects/repo_statistics"
 require "./objects/repo_status"
 require "./objects/repo_version"
 require "./objects/repo"
