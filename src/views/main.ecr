@@ -40,7 +40,7 @@
 <h2>Adding a shard</h2>
 
 <p>CrystalDoc.info supports any publicly available git hosting service, as long as it matches the format
-  <code>domain.tld/username/project_name</code>. You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter
+  <code>domain.tld/username/project_name</code>. It will automatically find any tags that match the regex <code>^[a-zA-Z0-9\.\-_]+$</code>. You can also do a POST request to <code>crystaldoc.info/new_repository</code> with a <code>url</code> body parameter
   pointing to the repository URL.
 </p>
 
