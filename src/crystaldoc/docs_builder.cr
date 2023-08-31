@@ -18,72 +18,70 @@ class CrystalDoc::DocsBuilder
     end
     log "Success."
 
-    # cd into repository folder
-    Dir.cd(temp_folder) do
-      log "Checking out version #{version}..."
-      # force checkout specific version
-      unless git_checkout.success?
-        raise "Failed to checkout version #{version}"
-      end
-      log "Success."
-
-      # remove ./docs folder
-      `rm -rf docs`
-
-      log "Pre processing..."
-      pre_process
-      log "Success."
-
-      # shards install
-      log "Running shards install..."
-      unless shards_install.success?
-        raise "Failed to install shards"
-      end
-      log "Success."
-
-      # build docs
-      log "Building docs..."
-      unless crystal_doc.success?
-        raise "Failed to build docs"
-      end
-      log "Success."
-
-      # post process
-      log "Post processing..."
-      post_process
-      log "Success."
-
-      # make destination folder if necessary
-      log "Deleting destination folder..."
-      execute("rm", ["-rf", "../public#{repo_path}/#{version}"])
-      log "Success."
-
-      # make destination folder if necessary
-      log "Creating destination folder..."
-      unless execute("mkdir", ["-p", "../public#{repo_path}"]).success?
-        raise "Failed to create destination folder"
-      end
-      log "Success."
-
-      log "Copying docs to destination folder..."
-      # move ./docs folder to destination folder
-      unless execute("mv", ["docs", "../public#{repo_path}/#{version}"]).success?
-        raise "Failed to copy docs to destination folder"
-      end
-      log "Success."
-    rescue ex
-      puts "DocsBuilder Exception: #{ex}"
-
-      # remove destination folder
-      `rm -rf "../public#{repo_path}/#{version}"`
-
-      # re-create destination folder
-      `mkdir -p "../public#{repo_path}/#{version}"`
-
-      # render build failure template
-      File.write "../public#{repo_path}/#{version}/index.html",
-        CrystalDoc::Views::BuildFailureTemplate.new(source_url)
+    log "Checking out version #{version}..."
+    # force checkout specific version
+    unless git_checkout.success?
+      raise "Failed to checkout version #{version}"
     end
+    log "Success."
+
+    # remove ./docs folder
+    execute("rm", ["-rf", "#{temp_folder}/docs"])
+
+    log "Pre processing..."
+    pre_process
+    log "Success."
+
+    # shards install
+    log "Running shards install..."
+    unless shards_install.success?
+      raise "Failed to install shards"
+    end
+    log "Success."
+
+    # build docs
+    log "Building docs..."
+    unless crystal_doc.success?
+      raise "Failed to build docs"
+    end
+    log "Success."
+
+    # post process
+    log "Post processing..."
+    post_process
+    log "Success."
+
+    # make destination folder if necessary
+    log "Deleting destination folder..."
+    execute("rm", ["-rf", "../public#{repo_path}/#{version}"])
+    log "Success."
+
+    # make destination folder if necessary
+    log "Creating destination folder..."
+    unless execute("mkdir", ["-p", "../public#{repo_path}"]).success?
+      raise "Failed to create destination folder"
+    end
+    log "Success."
+
+    log "Copying docs to destination folder..."
+    # move ./docs folder to destination folder
+    unless execute("mv", ["docs", "../public#{repo_path}/#{version}"]).success?
+      raise "Failed to copy docs to destination folder"
+    end
+    log "Success."
+  rescue ex
+    puts "DocsBuilder Exception: #{ex.inspect}"
+    puts "  #{ex.backtrace.join("\n  ")}"
+
+    # remove destination folder
+    `rm -rf "./public#{repo_path}/#{version}"`
+
+    # re-create destination folder
+    `mkdir -p "./public#{repo_path}/#{version}"`
+
+    # render build failure template
+    File.write "./public#{repo_path}/#{version}/index.html",
+      CrystalDoc::Views::BuildFailureTemplate.new(source_url)
   ensure
     # ensure removal of temp folder
     `rm -rf "#{temp_folder}"`
@@ -94,7 +92,7 @@ class CrystalDoc::DocsBuilder
   end
 
   private def temp_folder : String
-    Path["#{service}-#{username}-#{project_name}-#{version}"].expand.to_s
+    @temp_folder ||= Path["#{service}-#{username}-#{project_name}-#{version}"].expand.to_s
   end
 
   private def git_clone_repo : Process::Status
@@ -109,7 +107,8 @@ class CrystalDoc::DocsBuilder
     Process.run(
       "git",
       ["checkout", "--force", version],
-      env: {"GIT_TERMINAL_PROMPT" => "0"}
+      env: {"GIT_TERMINAL_PROMPT" => "0"},
+      chdir: temp_folder
     )
   end
 
@@ -122,7 +121,7 @@ class CrystalDoc::DocsBuilder
         "--skip-postinstall",
         "--skip-executables",
       ],
-      "#{temp_folder}/lib",
+      temp_folder,
       temp_folder
     )
   end
@@ -135,27 +134,31 @@ class CrystalDoc::DocsBuilder
         "--json-config-url=#{repo_path}/versions.json",
         "--source-refname=#{version}",
       ],
-      "#{temp_folder}/docs",
+      temp_folder,
       temp_folder
     )
   end
 
   private def execute(cmd : String, args : Array(String)) : Process::Status
-    Process.run(cmd, args)
+    Process.run(
+      cmd, args,
+      chdir: temp_folder
+    )
   end
 
-  private def safe_execute(cmd : String, args : Array(String), rw_directory : String, ro_directory : String) : Process::Status
+  private def safe_execute(cmd : String, args : Array(String), rw_dir : String, ro_dir : String) : Process::Status
     Process.run("firejail", [
       "--noprofile",
-      "--read-only=#{ro_directory}",
-      "--read-write=#{rw_directory}",
+      "--read-only=#{ro_dir}",
+      "--read-write=#{rw_dir}",
       "--restrict-namespaces",
       "--rlimit-as=3g",
       "--timeout=00:15:00",
       cmd,
       *args,
     ],
-      output: STDOUT, error: STDERR
+      output: STDOUT, error: STDERR,
+      chdir: temp_folder
     )
   end
 
@@ -176,7 +179,7 @@ class CrystalDoc::DocsBuilder
   end
 
   private def post_process : Nil
-    CrystalDoc::Html.post_process("docs") do |html, file_path|
+    CrystalDoc::Html.post_process("#{temp_folder}/docs") do |html, file_path|
       sidebar_header = html.css(".sidebar-header").first
       sidebar_search_box = sidebar_header.css(".search-box").first
       sidebar_project_summary = sidebar_header.css(".project-summary").first

@@ -76,30 +76,34 @@ class CrystalDoc::DocsHandler < Kemal::Handler
       SQL
       log "Succcess."
 
-      log "Searching for new versions..."
-      CrystalDoc::Queries.refresh_repo_versions(db, repo_id)
-      log "Succcess."
+      db.transaction do |tx|
+        conn = tx.connection
 
-      # update the repo status time
-      log "Updating the repo last checked time..."
-      CrystalDoc::Queries.upsert_repo_status(db, repo_id)
-      log "Succcess."
-
-      if !File.exists?("public/#{repo.values.join("/")}/index.html") || nightly
-        puts "Building docs for #{repo.values.join("/")} (#{source_url})"
-
-        builder = CrystalDoc::DocsBuilder.new(
-          source_url, repo["service"], repo["username"], repo["project_name"], repo["version"]
-        )
-        builder.build
-
+        log "Searching for new versions..."
+        CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
         log "Succcess."
+
+        # update the repo status time
+        log "Updating the repo last checked time..."
+        CrystalDoc::Queries.upsert_repo_status(conn, repo_id)
+        log "Succcess."
+
+        if !File.exists?("public/#{repo.values.join("/")}/index.html") || nightly
+          puts "Building docs for #{repo.values.join("/")} (#{source_url})"
+
+          builder = CrystalDoc::DocsBuilder.new(
+            source_url, repo["service"], repo["username"], repo["project_name"], repo["version"]
+          )
+          builder.build
+
+          log "Succcess."
+        end
       end
     end
 
     call_next(context)
   rescue ex
-    puts "DocsHandler Exception: #{ex}"
+    puts "DocsHandler Exception: #{ex.inspect}"
     puts "  #{ex.backtrace.join("\n  ")}"
   ensure
     db.try &.close
