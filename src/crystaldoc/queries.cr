@@ -69,6 +69,7 @@ module CrystalDoc::Queries
       INNER JOIN crystal_doc.repo
         ON repo.id = repo_version.repo_id
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
+      ORDER BY repo_version.id ASC
     SQL
 
     versions = [] of Hash(String, String | Bool)

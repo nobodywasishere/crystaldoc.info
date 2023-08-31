@@ -50,4 +50,4 @@ CREATE TABLE repo_statistics (
 
 GRANT SELECT, INSERT, UPDATE ON repo_statistics TO crystal_doc_server;
 
-CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+CREATE EXTENSION fuzzystrmatch;
