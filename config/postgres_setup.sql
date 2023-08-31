@@ -50,13 +50,4 @@ CREATE TABLE repo_statistics (
 
 GRANT SELECT, INSERT, UPDATE ON repo_statistics TO crystal_doc_server;
 
-CREATE TABLE doc_job (
-    id int not null primary key generated always as identity,
-    queue_time timestamptz default now(),
-    priority int not null,
-    version_id int unique references repo_version on delete cascade
-);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON doc_job TO crystal_doc_server;
-
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;

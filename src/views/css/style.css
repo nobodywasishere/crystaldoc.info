@@ -8,7 +8,7 @@ body {
 }
 
 body {
-  font-size: 18px;
+  /* font-size: 18px; */
   font-family: "Avenir", "Tahoma", "Lucida Sans", "Lucida Grande", Verdana, Arial, sans-serif;
   color: #333;
   line-height: 1.5;
@@ -100,11 +100,27 @@ form div {
   position: relative;
 }
 
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 #search-box {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
   box-sizing: border-box;
+}
+
+@media only screen and (max-width: 635px) {
+  .main-content {
+    max-width: 100%;
+  }
+
+  #new-url-box {
+    width: auto;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

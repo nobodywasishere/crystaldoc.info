@@ -16,6 +16,6 @@ targets:
   crystaldoc:
     main: src/crystaldoc.cr
 
-crystal: 1.8.2
+crystal: ~> 1.8
 
 license: MIT
