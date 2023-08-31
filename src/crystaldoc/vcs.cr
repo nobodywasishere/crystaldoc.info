@@ -1,35 +1,126 @@
-module CrystalDoc::Git
-  def self.valid_vcs_url?(repo_url : String) : Bool
-    ls_remote(args: [repo_url])
-    # Mercurial - hg identify
+class CrystalDoc::VCS
+  getter :source_url
+
+  def initialize(@source_url : String)
   end
 
-  def self.ls_remote(output : Process::Stdio = Process::Redirect::Close, args : Array(String) = [] of String) : Bool
-    Process.run("git", ["ls-remote", *args], output: output, env: {"GIT_TERMINAL_PROMPT" => "0"}).success?
-  end
+  def parse(db : Queriable) : String
+    # parse/validate url
+    return "Invalid URL" unless valid_url?
+    repo = parse_url
 
-  def self.versions(repo_url : String, &)
-    stdout = IO::Memory.new
-    unless ls_remote(stdout, [repo_url])
-      raise "git ls-remote failed"
+    # db transaction
+    db.transaction do |tx|
+      conn = tx.connection
+
+      # db query add repo to repo table
+      repo_id = conn.scalar(<<-SQL, repo["service"], repo["username"], repo["project_name"], source_url).as(Int32)
+        INSERT INTO crystal_doc.repo (service, username, project_name, source_url)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id
+      SQL
+
+      # get nightly version
+      if (nightly_ver = main_branch).nil?
+        return "Failed to find main branch"
+      end
+
+      # add nightly version to versions table
+      nightly_id = conn.query_one(<<-SQL, repo_id, nightly_ver, true, as: Int32)
+        INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      SQL
+
+      CrystalDoc::Queries.update_latest_repo_version(conn, repo_id, nightly_id)
+      CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
     end
-    tags_key = "refs/tags/"
+
+    "Successfully added repo"
+  rescue ex
+    ex.to_s
+  end
+
+  private def valid_url? : Bool
+    Process.run(
+      "git",
+      ["ls-remote", source_url],
+      env: {"GIT_TERMINAL_PROMPT" => "0"}
+    ).success?
+  end
+
+  private def parse_url : Hash(String, String)
+    uri = URI.parse(source_url).normalize
+    service = URI.parse(source_url).host.try &.gsub(/\.com$/, "").gsub(/\./, "-")
+
+    path_fragments = uri.path.split('/')[1..]
+    raise "Invalid url" if path_fragments.size != 2 || service.nil?
+
+    username = path_fragments[0]
+    project_name = path_fragments[1]
+
+    raise "Invalid username" unless /^~?[\w\.\-_]+$/.match(username)
+    raise "Invalid project name" unless /^[\w\.\-_]+$/.match(project_name)
+
+    {
+      "service"      => service,
+      "username"     => username,
+      "project_name" => project_name,
+    }
+  end
+
+  private def main_branch : String?
+    stdout = IO::Memory.new
+    unless Process.run(
+             "git",
+             [
+               "ls-remote",
+               "--symref",
+               source_url,
+               "HEAD",
+             ],
+             output: stdout,
+             env: {"GIT_TERMINAL_PROMPT" => "0"}
+           ).success?
+      raise "git ls-remote failed: #{stdout.to_s}"
+    end
+    stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
+  end
+
+  def versions(&)
+    self.class.versions(@source_url) do |hash, tag|
+      yield hash, tag
+    end
+  end
+
+  def self.versions(source_url, &)
+    stdout = IO::Memory.new
+    unless Process.run(
+             "git",
+             [
+               "-c", "versionsort.suffix=-",
+               "ls-remote",
+               "--refs",
+               "--tags",
+               "--sort", "v:refname",
+               source_url,
+             ],
+             output: stdout,
+             env: {"GIT_TERMINAL_PROMPT" => "0"}
+           ).success?
+      raise "git ls-remote failed: #{stdout.to_s}"
+    end
+
     # stdio.each_line doesn't work for some reason, had to convert to string first
     stdout.to_s.each_line do |line|
       split_line = line.split('\t')
+
       hash = split_line[0]
-      tag = split_line[1].lchop?(tags_key)
+      tag = split_line[1].lchop("refs/tags/")
+
       unless tag.nil?
         yield hash, tag
       end
     end
-  end
-
-  def self.main_branch(repo_url : String) : String?
-    stdout = IO::Memory.new
-    unless ls_remote(stdout, ["--symref", repo_url, "HEAD"])
-      raise "git ls-remote failed"
-    end
-    stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
   end
 end

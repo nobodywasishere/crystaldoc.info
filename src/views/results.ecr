@@ -1,9 +1,0 @@
-<ul>
-  <% CrystalDoc::Repo.find(db, query).each do |repo| %>
-    <li>
-      <a href="<%= repo.path %>">
-        <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
-      </a>
-    </li>
-  <% end %>
-</ul>

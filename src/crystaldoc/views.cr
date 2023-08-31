@@ -9,10 +9,10 @@ module CrystalDoc
     end
 
     class BuildFailureTemplate
-      def initialize(@repo : CrystalDoc::Repo)
+      def initialize(@source_url : String)
       end
 
-      ECR.def_to_s "src/views/layouts/layout.ecr"
+      ECR.def_to_s "src/views/layout.ecr"
 
       def content
         ECR.render("src/views/build_failure.ecr")

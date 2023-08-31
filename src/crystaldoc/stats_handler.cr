@@ -1,15 +1,27 @@
-require "./objects"
+require "kemal"
 
 class CrystalDoc::StatsHandler < Kemal::Handler
-  def initialize(@db : Queriable)
-    super()
-  end
-
   def call(context)
-    unless (repo = CrystalDoc::Repo.from_request(@db, context.request)).nil?
-      CrystalDoc::RepoStatistics.increment(@db, repo.id)
+    path = context.request.path
+    if /(?:\/~?[a-zA-Z0-9\.\-_]+){4,}\/.*\.html/.match(path)
+      repo = parse_path(path)
+      puts "Incrementing stats count for #{repo.values.join("/")}"
+
+      DB.open(ENV["POSTGRES_DB"]) do |db|
+        CrystalDoc::Queries.increment_repo_stats(db, repo["service"], repo["username"], repo["project_name"])
+      end
     end
 
-    call_next context
+    call_next(context)
+  end
+
+  private def parse_path(path) : Hash(String, String)
+    split_path = path.split("/")
+
+    {
+      "service"      => split_path[1],
+      "username"     => split_path[2],
+      "project_name" => split_path[3],
+    }
   end
 end
