@@ -1,0 +1,11 @@
+<% unless repos.nil? %>
+<ul>
+  <% repos.each do |repo| %>
+    <li>
+      <a href="<%= repo["path"] %>">
+        <%= "#{repo["username"]}/#{repo["project_name"]}" %> <small>(<%= repo["service"] %>)</small>
+      </a>
+    </li>
+  <% end %>
+</ul>
+<% end %>

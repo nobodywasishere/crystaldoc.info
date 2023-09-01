@@ -42,12 +42,4 @@ CREATE TABLE repo_status (
 
 GRANT SELECT, INSERT, UPDATE ON repo_status TO crystal_doc_server;
 
-CREATE TABLE repo_statistics (
-    id int not null primary key generated always as identity,
-    repo_id int unique references repo on delete cascade,
-    count int not null default 0
-);
-
-GRANT SELECT, INSERT, UPDATE ON repo_statistics TO crystal_doc_server;
-
 CREATE EXTENSION fuzzystrmatch;

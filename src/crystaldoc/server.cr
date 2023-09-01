@@ -3,7 +3,6 @@ require "db"
 require "pg"
 
 serve_static({"gzip" => true, "dir_listing" => false})
-add_handler CrystalDoc::StatsHandler.new, 1
 add_handler CrystalDoc::DocsHandler.new, 1
 
 Dir.mkdir_p("public/css", 0o744)
@@ -60,6 +59,13 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
 
   post "/search" do |env|
     query = env.params.body["q"]
+    if query.includes? "/"
+      user, proj = query.split("/")[0..1]
+      proj = user if proj == ""
+    else
+      user = query
+      proj = query
+    end
     render "src/views/search_results.ecr" unless query == ""
   end
 
