@@ -88,33 +88,28 @@ module CrystalDoc::Queries
     {"versions" => [versions.first] + versions[1..].reverse}.to_json
   end
 
-  def self.find_repo(db : Queriable, query : String) : Array(Hash(String, String))
-    rs_to_repo(db.query(<<-SQL, query))
-      SELECT repo.service, repo.username, repo.project_name
-      FROM crystal_doc.repo
-      WHERE levenshtein(repo.username, $1) <= 10 OR levenshtein(repo.project_name, $1) <= 10
-      ORDER BY LEAST(levenshtein(repo.username, $1), levenshtein(repo.project_name, $1))
+  def self.find_repo(db : Queriable, user : String, proj : String) : Array(Hash(String, String))
+    rs_to_repo(db.query(<<-SQL, user, proj))
+      SELECT service, username, project_name, distance
+      FROM (
+        SELECT *, (LEAST(
+          levenshtein_less_equal(repo.username, $1, 21, 1, 21, 20),
+          levenshtein_less_equal(repo.project_name, $2, 21, 1, 21, 20)
+        )) AS distance
+        FROM crystal_doc.repo
+      ) AS subquery
+      WHERE distance <= 20
+      ORDER BY distance
       LIMIT 10;
     SQL
   end
 
-  def self.recently_added_repos(db : Queriable)
-    rs_to_repo(db.query(<<-SQL))
+  def self.recently_added_repos(db : Queriable, count : Int32 = 10)
+    rs_to_repo(db.query(<<-SQL, count))
       SELECT repo.service, repo.username, repo.project_name
       FROM crystal_doc.repo
       ORDER BY id DESC
-      LIMIT 10;
-    SQL
-  end
-
-  def self.most_popular_repos(db : Queriable)
-    rs_to_repo(db.query(<<-SQL))
-      SELECT repo.service, repo.username, repo.project_name
-      FROM crystal_doc.repo
-      INNER JOIN crystal_doc.repo_statistics
-        ON crystal_doc.repo.id = crystal_doc.repo_statistics.repo_id
-      ORDER BY crystal_doc.repo_statistics.count DESC
-      LIMIT 10;
+      LIMIT $1;
     SQL
   end
 
@@ -162,22 +157,6 @@ module CrystalDoc::Queries
           ON repo.id = repo_version.repo_id
         WHERE repo.id = $1 AND repo_version.commit_id = $2
       )
-    SQL
-  end
-
-  def self.increment_repo_stats(db : Queriable, service : String, username : String, project_name : String)
-    db.exec(<<-SQL, service, username, project_name)
-      INSERT INTO crystal_doc.repo_statistics(repo_id, count)
-      VALUES (
-        (
-          SELECT repo.id
-          FROM crystal_doc.repo
-          WHERE service = $1 AND username = $2 AND project_name = $3
-        ),
-        1
-      )
-      ON CONFLICT (repo_id) DO
-      UPDATE SET count = crystal_doc.repo_statistics.count + 1;
     SQL
   end
 

@@ -18,5 +18,14 @@ module CrystalDoc
         ECR.render("src/views/build_failure.ecr")
       end
     end
+
+    class RepoList
+      getter repos : Array(Hash(String, String))
+
+      def initialize(@repos)
+      end
+
+      ECR.def_to_s "src/views/repo_list.ecr"
+    end
   end
 end

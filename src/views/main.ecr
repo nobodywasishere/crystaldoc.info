@@ -8,37 +8,18 @@
   Click <a href="/random">here</a> to go to a random repository.
 </p>
 
-<form>
+<form onkeypress="return event.keyCode != 13;">
   <div>
-    <input type="search" id="search-box" name="q" placeholder="Search shards..." hx-post="/search"
-      hx-trigger="keyup changed delay:500ms" hx-target="#search-results" />
+    <input type="search" id="search-box" name="q" placeholder="Search shards..."
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      hx-post="/search" hx-trigger="keyup changed delay:500ms, click[enterKey]" hx-target="#search-results"/>
   </div>
   <div id="search-results"></div>
 </form>
 
 <h2>Recently Added</h2>
 
-<ul>
-  <% CrystalDoc::Queries.recently_added_repos(db).each do |repo| %>
-    <li>
-      <a href="<%= repo["path"] %>">
-        <%= "#{repo["username"]}/#{repo["project_name"]}" %> <small>(<%= repo["service"] %>)</small>
-      </a>
-    </li>
-  <% end %>
-</ul>
-
-<h2>Most Popular</h2>
-
-<ul>
-  <% CrystalDoc::Queries.most_popular_repos(db).each do |repo| %>
-    <li>
-      <a href="<%= repo["path"] %>">
-        <%= "#{repo["username"]}/#{repo["project_name"]}" %> <small>(<%= repo["service"] %>)</small>
-      </a>
-    </li>
-  <% end %>
-</ul>
+<%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.recently_added_repos(db, 10)) %>
 
 <h2>Adding a shard</h2>
 
@@ -49,7 +30,9 @@
 
 <form method="post" hx-post="/new_repository" hx-target="#new-repository-results">
   <div>
-    <input type="url" name="url" id="new-url-box" placeholder="https://github.com/username/project" pattern="https://.*" size="30"
+    <input type="url" name="url" id="new-url-box" size="36"
+      placeholder="https://github.com/username/project" pattern="https://.*"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
       required>
     <input type="submit" value="Add repo!">
   </div>

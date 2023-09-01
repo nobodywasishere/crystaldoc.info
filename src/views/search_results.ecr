@@ -1,9 +1,1 @@
-<ul>
-  <% CrystalDoc::Queries.find_repo(db, query).each do |repo| %>
-    <li>
-      <a href="<%= repo["path"] %>">
-        <%= "#{repo["username"]}/#{repo["project_name"]}" %> <small>(<%= repo["service"] %>)</small>
-      </a>
-    </li>
-  <% end %>
-</ul>
+<%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.find_repo(db, user, proj)) %>
