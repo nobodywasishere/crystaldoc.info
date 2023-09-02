@@ -89,6 +89,8 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
       vcs = CrystalDoc::VCS.new(url)
       vcs.parse(db)
     end
+  rescue ex
+    puts "NewRepo Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}"
   end
 
   error 404 do |env|
