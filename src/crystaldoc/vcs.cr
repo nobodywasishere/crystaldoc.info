@@ -2,11 +2,11 @@ class CrystalDoc::VCS
   getter :source_url
 
   def initialize(@source_url : String)
+    raise "Invalid URL" unless valid_url?
   end
 
   def parse(db : Queriable) : String
     # parse/validate url
-    return "Invalid URL" unless valid_url?
     repo = parse_url
 
     # db transaction
@@ -21,7 +21,7 @@ class CrystalDoc::VCS
       SQL
 
       # get nightly version
-      if (nightly_ver = main_branch).nil?
+      if (nightly_ver = main_branch).nil? || (nightly_hash = main_commit_hash).nil?
         return "Failed to find main branch"
       end
 
@@ -30,6 +30,7 @@ class CrystalDoc::VCS
       CrystalDoc::Queries.update_latest_repo_version(conn, repo_id, nightly_id)
       CrystalDoc::Queries.insert_doc_job(conn, nightly_id, CrystalDoc::DocJob::LATEST_PRIORITY)
 
+      CrystalDoc::Queries.upsert_repo_status(conn, nightly_hash, repo_id)
       CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
     end
 
@@ -66,7 +67,7 @@ class CrystalDoc::VCS
     }
   end
 
-  private def main_branch : String?
+  def main_branch : String?
     stdout = IO::Memory.new
     unless Process.run(
              "git",
@@ -82,6 +83,23 @@ class CrystalDoc::VCS
       raise "git ls-remote failed: #{stdout.to_s}"
     end
     stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
+  end
+
+  def main_commit_hash : String?
+    stdout = IO::Memory.new
+    unless Process.run(
+             "git",
+             [
+               "ls-remote",
+               source_url,
+               "HEAD",
+             ],
+             output: stdout,
+             env: {"GIT_TERMINAL_PROMPT" => "0"}
+           ).success?
+      raise "git ls-remote failed: #{stdout.to_s}"
+    end
+    stdout.to_s.match(/^(.+)\s+HEAD/).try &.[1]
   end
 
   def versions(&)
@@ -119,5 +137,10 @@ class CrystalDoc::VCS
         yield hash, tag
       end
     end
+  end
+
+  def self.main_commit_hash(source_url : String) : String
+    vcs = CrystalDoc::VCS.new(source_url)
+    vcs.main_commit_hash || raise "No main commit hash for #{source_url}"
   end
 end

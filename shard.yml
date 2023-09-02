@@ -15,8 +15,10 @@ dependencies:
 targets:
   crystaldoc_server:
     main: src/crystaldoc_server.cr
-  crystaldoc_worker:
-    main: src/crystaldoc_worker.cr
+  crystaldoc_builder:
+    main: src/crystaldoc_builder.cr
+  crystaldoc_searcher:
+    main: src/crystaldoc_searcher.cr
 
 crystal: ~> 1.8
 

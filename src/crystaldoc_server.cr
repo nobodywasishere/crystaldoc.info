@@ -31,7 +31,7 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
     unless latest_version.nil?
       env.redirect "./#{latest_version}/index.html"
     else
-      "No versions for #{env.request.path}"
+      env.response.status_code = 404
     end
   end
 
@@ -92,19 +92,39 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
   end
 
   error 404 do |env|
+    title = "This page doesn't exist"
+    msg = ""
+
     unless /(?:\/~?[a-zA-Z0-9\.\-_]+){4,}/.match(env.request.path)
-      render "src/views/404.ecr", "src/views/layout.ecr"
+      next render "src/views/404.ecr", "src/views/layout.ecr"
     end
 
     service, user, proj, version = env.request.path.split("/")[1..4]
 
     # Check if it's a valid repo / version
+    unless CrystalDoc::Queries.repo_exists(db, service, user, proj)
+      title = "Repo doesn't exist"
+      msg = "The repo '#{service}/#{user}/#{proj}' doesn't exist"
+      next render "src/views/404.ecr", "src/views/layout.ecr"
+    end
+
+    unless CrystalDoc::Queries.repo_version_exists(db, service, user, proj, version)
+      title = "Version doesn't exist"
+      msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' doesn't exist"
+      next render "src/views/404.ecr", "src/views/layout.ecr"
+    end
 
     # Check if doc generation in progress
 
     # Check if doc generation is queued
+    if CrystalDoc::DocJob.in_queue?(db, service, user, proj, version)
+      title = "Version in build queue"
+      msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' is in the build queue"
+      next render "src/views/404.ecr", "src/views/layout.ecr"
+    end
 
     # Shouldn't end up here
+    render "src/views/404.ecr", "src/views/layout.ecr"
   end
 end
 
