@@ -34,11 +34,22 @@ module CrystalDoc::Queries
   end
 
   def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
-    db.query_one(<<-SQL, repo_id, tag, true, as: Int32)
+    rs = db.query(<<-SQL, repo_id, tag, true)
       INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
       VALUES ($1, $2, $3)
       ON CONFLICT (repo_id, commit_id) DO NOTHING
       RETURNING id
+    SQL
+
+    rs.each do
+      return rs.read(Int32)
+    end
+
+    db.query_one(<<-SQL, repo_id, tag, as: Int32)
+      SELECT repo_version.id
+      FROM crystal_doc.repo_version
+      WHERE repo_version.repo_id = $1 AND repo_version.commit_id = $2
+      LIMIT 1
     SQL
   end
 
@@ -127,6 +138,17 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.repo_needs_updating(db : Queriable) : Array(Hash(String, String))
+    rs_to_repo(db.query(<<-SQL))
+      SELECT service, username, project_name, abs(current_date - repo_status.last_checked::date) as date_diff
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_status
+        ON repo_status.repo_id = repo.id
+      WHERE abs(current_date - repo_status.last_checked::date) >= 1
+      LIMIT 1;
+    SQL
+  end
+
   def self.rs_to_repo(rs : PG::ResultSet) : Array(Hash(String, String))
     repos = [] of Hash(String, String)
 
@@ -170,39 +192,40 @@ module CrystalDoc::Queries
     SQL
   end
 
-  def self.repo_version_exists(db : Queriable, repo_id : Int32, version : String) : Bool
-    db.query_one(<<-SQL, repo_id, version, as: Bool)
+  def self.repo_version_exists(db : Queriable, service : String, username : String, project_name : String, version : String) : Bool
+    db.query_one(<<-SQL, service, username, project_name, version, as: Bool)
       SELECT EXISTS (
         SELECT 1
         FROM crystal_doc.repo_version
         INNER JOIN crystal_doc.repo
           ON repo.id = repo_version.repo_id
-        WHERE repo.id = $1 AND repo_version.commit_id = $2
+        WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.commit_id = $4
       )
     SQL
   end
 
-  def self.upsert_repo_status(db : Queriable, repo_id : Int32)
-    db.exec(<<-SQL, repo_id)
+  def self.upsert_repo_status(db : Queriable, last_commit : String, repo_id : Int32)
+    db.exec(<<-SQL, last_commit, repo_id)
       INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
       VALUES (
         (
           SELECT repo.id
           FROM crystal_doc.repo
-          WHERE repo.id = $1
+          WHERE repo.id = $2
         ),
-        'UNUSED',
+        $1,
         now()
       )
       ON CONFLICT(repo_id) DO UPDATE SET last_checked = EXCLUDED.last_checked
     SQL
   end
 
-  def self.insert_doc_job(db : Queriable, version_id : Int32, priority : Int32) : Int32
+  def self.insert_doc_job(db : Queriable, version_id : Int32, priority : Int32)
     puts "Inserting doc job for #{version_id}"
-    db.scalar(<<-SQL, version_id, priority).as(Int32)
+    db.exec(<<-SQL, version_id, priority)
       INSERT INTO crystal_doc.doc_job (version_id, priority)
       VALUES ($1, $2)
+      ON CONFLICT(version_id) DO NOTHING
       RETURNING id
     SQL
   end

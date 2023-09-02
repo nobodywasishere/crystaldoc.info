@@ -1,5 +1,6 @@
 require "./crystaldoc"
 
+# Queue builders
 (1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do
   spawn do
     loop do

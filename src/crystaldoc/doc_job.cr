@@ -50,4 +50,18 @@ class CrystalDoc::DocJob
       LIMIT $1
     SQL
   end
+
+  def self.in_queue?(db : Queriable, service : String, username : String, project_name : String, version : String) : Bool
+    db.query_one(<<-SQL, service, username, project_name, version, as: Bool)
+      SELECT EXISTS (
+        SELECT 1
+        FROM crystal_doc.doc_job
+        INNER JOIN crystal_doc.repo_version
+          ON repo_version.id = doc_job.version_id
+        INNER JOIN crystal_doc.repo
+          ON repo.id = repo_version.repo_id
+        WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.commit_id = $4
+      )
+    SQL
+  end
 end
