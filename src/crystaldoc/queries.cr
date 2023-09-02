@@ -34,22 +34,11 @@ module CrystalDoc::Queries
   end
 
   def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
-    rs = db.query(<<-SQL, repo_id, tag, true)
+    db.query_one(<<-SQL, repo_id, tag, true, as: Int32)
       INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
       VALUES ($1, $2, $3)
       ON CONFLICT (repo_id, commit_id) DO NOTHING
       RETURNING id
-    SQL
-
-    rs.each do
-      return rs.read(Int32)
-    end
-
-    db.query_one(<<-SQL, repo_id, tag, as: Int32)
-      SELECT repo_version.id
-      FROM crystal_doc.repo_version
-      WHERE repo_version.repo_id = $1 AND repo_version.commit_id = $2
-      LIMIT 1
     SQL
   end
 

@@ -22,11 +22,12 @@ class CrystalDoc::VCS
 
       # get nightly version
       if (nightly_ver = main_branch).nil? || (nightly_hash = main_commit_hash).nil?
-        return "Failed to find main branch"
+        raise "Failed to find main branch"
       end
 
       # add nightly version to versions table
       nightly_id = CrystalDoc::Queries.insert_repo_version(conn, repo_id, nightly_ver, true)
+
       CrystalDoc::Queries.update_latest_repo_version(conn, repo_id, nightly_id)
       CrystalDoc::Queries.insert_doc_job(conn, nightly_id, CrystalDoc::DocJob::LATEST_PRIORITY)
 
@@ -36,7 +37,8 @@ class CrystalDoc::VCS
 
     "Successfully added repo"
   rescue ex
-    ex.to_s
+    puts "VCS Exception: #{ex.to_s}:\n  #{ex.backtrace.join("\n  ")}"
+    "Failed to add repo"
   end
 
   private def valid_url? : Bool
