@@ -13,8 +13,10 @@ dependencies:
     github: kostya/lexbor
 
 targets:
-  crystaldoc:
-    main: src/crystaldoc.cr
+  crystaldoc_server:
+    main: src/crystaldoc_server.cr
+  crystaldoc_worker:
+    main: src/crystaldoc_worker.cr
 
 crystal: ~> 1.8
 

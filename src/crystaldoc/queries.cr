@@ -33,6 +33,15 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
+    db.query_one(<<-SQL, repo_id, tag, true, as: Int32)
+      INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (repo_id, commit_id) DO NOTHING
+      RETURNING id
+    SQL
+  end
+
   def self.refresh_repo_versions(db : Queriable, repo_id : Int32)
     source_url = db.query_one(<<-SQL, repo_id, as: String)
       SELECT repo.source_url
@@ -41,20 +50,25 @@ module CrystalDoc::Queries
     SQL
 
     last_version_id = nil
+    new_version_ids = [] of Int32
     CrystalDoc::VCS.versions(source_url) do |hash, tag|
       next if tag.nil? || /[^\w\.\-_]/.match(tag)
 
       # add versions to versions table
-      rs = db.query(<<-SQL, repo_id, tag, false)
-        INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (repo_id, commit_id) DO NOTHING
-        RETURNING id;
-      SQL
+      id = insert_repo_version(db, repo_id, tag, false)
 
-      rs.each do
-        last_version_id = rs.read(Int32)
+      last_version_id = id
+      new_version_ids << id
+    end
+
+    new_version_ids.each_with_index do |version, index|
+      if index == 0
+        priority = CrystalDoc::DocJob::LATEST_PRIORITY
+      else
+        priority = (new_version_ids.size - 1 - index) * CrystalDoc::DocJob::HISTORICAL_PRIORITY
       end
+
+      CrystalDoc::Queries.insert_doc_job(db, version, priority)
     end
 
     unless last_version_id.nil?
@@ -148,6 +162,14 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.repo_from_source(db : Queriable, source_url : String) : Array(Hash(String, String))
+    rs_to_repo(db.query(<<-SQL, source_url))
+      SELECT repo.service, repo.username, repo.project_name
+      FROM crystal_doc.repo
+      WHERE repo.source_url = $1
+    SQL
+  end
+
   def self.repo_version_exists(db : Queriable, repo_id : Int32, version : String) : Bool
     db.query_one(<<-SQL, repo_id, version, as: Bool)
       SELECT EXISTS (
@@ -173,6 +195,15 @@ module CrystalDoc::Queries
         now()
       )
       ON CONFLICT(repo_id) DO UPDATE SET last_checked = EXCLUDED.last_checked
+    SQL
+  end
+
+  def self.insert_doc_job(db : Queriable, version_id : Int32, priority : Int32) : Int32
+    puts "Inserting doc job for #{version_id}"
+    db.scalar(<<-SQL, version_id, priority).as(Int32)
+      INSERT INTO crystal_doc.doc_job (version_id, priority)
+      VALUES ($1, $2)
+      RETURNING id
     SQL
   end
 end

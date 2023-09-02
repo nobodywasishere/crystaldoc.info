@@ -1,6 +1,6 @@
 require "html"
 
-class CrystalDoc::DocsBuilder
+class CrystalDoc::Builder
   getter source_url : String
   getter service : String
   getter username : String
@@ -70,7 +70,7 @@ class CrystalDoc::DocsBuilder
     end
     log "Success."
   rescue ex
-    puts "DocsBuilder Exception: #{ex.inspect}"
+    puts "Builder Exception: #{ex.inspect}"
     puts "  #{ex.backtrace.join("\n  ")}"
 
     # remove destination folder

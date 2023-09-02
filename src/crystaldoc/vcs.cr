@@ -26,13 +26,10 @@ class CrystalDoc::VCS
       end
 
       # add nightly version to versions table
-      nightly_id = conn.query_one(<<-SQL, repo_id, nightly_ver, true, as: Int32)
-        INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      SQL
-
+      nightly_id = CrystalDoc::Queries.insert_repo_version(conn, repo_id, nightly_ver, true)
       CrystalDoc::Queries.update_latest_repo_version(conn, repo_id, nightly_id)
+      CrystalDoc::Queries.insert_doc_job(conn, nightly_id, CrystalDoc::DocJob::LATEST_PRIORITY)
+
       CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
     end
 
