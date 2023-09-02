@@ -1,0 +1,22 @@
+<h2>Doc Generation Queue</h2>
+
+<table>
+  <% jobs = CrystalDoc::DocJob.select(db, 20) %>
+
+  <tr>
+    <th>job id</th>
+    <th>priority</th>
+    <th>age</th>
+    <th>source</th>
+    <th>version</th>
+  </tr>
+  <%- jobs.each do |job| -%>
+    <tr>
+      <td><%= job.id %></td>
+      <td><%= job.priority %></td>
+      <td><%= job.job_age.to_span %></td>
+      <td><%= job.source_url %></td>
+      <td><%= job.commit_id %></td>
+    </tr>
+  <%- end -%>
+</table>

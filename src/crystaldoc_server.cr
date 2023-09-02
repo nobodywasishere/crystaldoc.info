@@ -2,8 +2,9 @@ require "kemal"
 require "db"
 require "pg"
 
+require "./crystaldoc"
+
 serve_static({"gzip" => true, "dir_listing" => false})
-add_handler CrystalDoc::DocsHandler.new, 1
 
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
@@ -14,7 +15,12 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
   end
 
   get "/:serv/:user/:proj" do |env|
-    env.redirect "#{env.request.path}/latest"
+    path = env.request.path
+    unless path.ends_with? "/"
+      path += "/"
+    end
+
+    env.redirect "#{path}latest"
   end
 
   get "/:serv/:user/:proj/latest" do |env|
@@ -69,6 +75,11 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
     render "src/views/search_results.ecr" unless query == ""
   end
 
+  get "/jobs_queue" do
+    limit = 20
+    render "src/views/jobs_queue.ecr", "src/views/layout.ecr"
+  end
+
   post "/new_repository" do |env|
     url = env.params.body["url"].as(String)
 
@@ -78,6 +89,22 @@ DB.open(ENV["POSTGRES_DB"]) do |db|
       vcs = CrystalDoc::VCS.new(url)
       vcs.parse(db)
     end
+  end
+
+  error 404 do |env|
+    unless /(?:\/~?[a-zA-Z0-9\.\-_]+){4,}/.match(env.request.path)
+      render "src/views/404.ecr", "src/views/layout.ecr"
+    end
+
+    service, user, proj, version = env.request.path.split("/")[1..4]
+
+    # Check if it's a valid repo / version
+
+    # Check if doc generation in progress
+
+    # Check if doc generation is queued
+
+    # Shouldn't end up here
   end
 end
 
