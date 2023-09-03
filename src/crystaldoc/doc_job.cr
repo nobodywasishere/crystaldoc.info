@@ -64,4 +64,12 @@ class CrystalDoc::DocJob
       )
     SQL
   end
+
+  def self.count(db : Queriable) : Int64
+    db.scalar(<<-SQL).as(Int64)
+      SELECT n_live_tup
+      FROM pg_stat_user_tables
+      WHERE relname = 'doc_job';
+    SQL
+  end
 end

@@ -27,5 +27,15 @@ module CrystalDoc
 
       ECR.def_to_s "src/views/repo_list.ecr"
     end
+
+    def self.format_span(span : Time::Span) : String
+      span = span.abs
+      time = [] of String
+      time << " #{span.days}d" if span.total_days.floor > 0
+      time << " #{span.hours}h" if span.total_hours.floor > 0
+      time << " #{span.minutes}m" if span.total_minutes.floor > 0
+      time << " #{span.seconds}s"
+      time.join("").strip
+    end
   end
 end

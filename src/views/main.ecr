@@ -28,7 +28,7 @@
 
 <form method="post" hx-post="/new_repository" hx-target="#new-repository-results">
   <div>
-    <input type="url" name="url" id="new-url-box" size="36"
+    <input type="url" name="url" id="new-url-box"
       placeholder="https://github.com/username/project" pattern="https://.*"
       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
       required>
@@ -36,3 +36,5 @@
   </div>
   <div id="new-repository-results"></div>
 </form>
+
+<p>Current status of documentation generation is available on the <a href="/jobs_queue">jobs queue</a>.</p>

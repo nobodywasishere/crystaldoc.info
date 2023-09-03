@@ -4,11 +4,12 @@ module CrystalDoc::Queries
     rs = db.query(<<-SQL, service, username, project_name)
       SELECT repo_version.commit_id
       FROM crystal_doc.repo_version
-      INNER JOIN crystal_doc.repo_latest_version
-        ON repo_version.id = repo_latest_version.latest_version
+      INNER JOIN crystal_doc.repo_status
+        ON repo_version.repo_id = repo_status.repo_id
       INNER JOIN crystal_doc.repo
-        ON repo.id = repo_latest_version.repo_id
-      WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
+        ON repo.id = repo_version.repo_id
+      WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
+      LIMIT 1;
     SQL
 
     rs.each do
@@ -33,11 +34,27 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.current_repo_versions(db : Queriable, repo_id) : Array(String)
+    rs = db.query(<<-SQL, repo_id)
+      SELECT repo_version.commit_id
+      FROM crystal_doc.repo_version
+      WHERE repo_version.repo_id = $1
+    SQL
+
+    tags = [] of String
+    rs.each do
+      tags << rs.read(String)
+    end
+
+    tags
+  end
+
   def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
-    db.query_one(<<-SQL, repo_id, tag, true, as: Int32)
+    db.scalar(<<-SQL, repo_id, tag, nightly).as(Int32)
       INSERT INTO crystal_doc.repo_version (repo_id, commit_id, nightly)
       VALUES ($1, $2, $3)
-      ON CONFLICT (repo_id, commit_id) DO NOTHING
+      ON CONFLICT (repo_id, commit_id) DO UPDATE
+      SET repo_id = crystal_doc.repo_version.repo_id
       RETURNING id
     SQL
   end
@@ -51,10 +68,13 @@ module CrystalDoc::Queries
 
     last_version_id = nil
     new_version_ids = [] of Int32
+    current_version_tags = current_repo_versions(db, repo_id)
     CrystalDoc::VCS.versions(source_url) do |hash, tag|
       next if tag.nil? || /[^\w\.\-_]/.match(tag)
+      next if current_version_tags.includes? tag
 
       # add versions to versions table
+      puts "New version for repo #{repo_id}: #{tag}"
       id = insert_repo_version(db, repo_id, tag, false)
 
       last_version_id = id
@@ -76,13 +96,37 @@ module CrystalDoc::Queries
     end
   end
 
+  def self.mark_version_valid(db : Queriable, commit : String, service : String, username : String, project_name : String)
+    db.exec(<<-SQL, commit, service, username, project_name)
+      UPDATE crystal_doc.repo_version
+      SET valid = true
+      FROM crystal_doc.repo
+      WHERE repo.id = repo_version.repo_id
+        AND repo_version.commit_id = $1
+        AND repo.service = $2
+        AND repo.username = $3
+        AND repo.project_name = $4
+    SQL
+  end
+
+  def self.repo_nightly_version_id(db : Queriable, service : String, username : String, project_name : String) : Int32
+    db.query_one(<<-SQL, service, username, project_name, as: Int32)
+      SELECT repo_version.id
+      FROM crystal_doc.repo_version
+      INNER JOIN crystal_doc.repo
+        ON repo.id = repo_version.repo_id
+      WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.nightly = true
+      LIMIT 1;
+    SQL
+  end
+
   def self.versions_json(db : Queriable, service : String, username : String, project_name : String) : String
     versions_rs = db.query(<<-SQL, service, username, project_name)
       SELECT repo_version.commit_id, repo_version.nightly
       FROM crystal_doc.repo_version
       INNER JOIN crystal_doc.repo
         ON repo.id = repo_version.repo_id
-      WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
+      WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
       ORDER BY repo_version.id ASC
     SQL
 
@@ -99,20 +143,26 @@ module CrystalDoc::Queries
       }
     end
 
+    if versions.empty?
+      return {"versions" => [] of String}.to_json
+    end
+
     {"versions" => [versions.first] + versions[1..].reverse}.to_json
   end
 
   def self.find_repo(db : Queriable, user : String, proj : String) : Array(Hash(String, String))
     rs_to_repo(db.query(<<-SQL, user, proj))
-      SELECT service, username, project_name, distance
+      SELECT DISTINCT service, username, project_name, distance
       FROM (
-        SELECT *, (LEAST(
+        SELECT repo.service, repo.username, repo.project_name, repo.id, (LEAST(
           levenshtein_less_equal(repo.username, $1, 21, 1, 21, 20),
           levenshtein_less_equal(repo.project_name, $2, 21, 1, 21, 20)
         )) AS distance
         FROM crystal_doc.repo
-      ) AS subquery
-      WHERE distance <= 20
+      ) AS repo
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true AND distance <= 20
       ORDER BY distance
       LIMIT 10;
     SQL
@@ -120,9 +170,12 @@ module CrystalDoc::Queries
 
   def self.recently_added_repos(db : Queriable, count : Int32 = 10)
     rs_to_repo(db.query(<<-SQL, count))
-      SELECT repo.service, repo.username, repo.project_name
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.id
       FROM crystal_doc.repo
-      ORDER BY id DESC
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true
+      ORDER BY repo.id DESC
       LIMIT $1;
     SQL
   end
@@ -134,6 +187,7 @@ module CrystalDoc::Queries
       INNER JOIN crystal_doc.repo_status
         ON repo_status.repo_id = repo.id
       WHERE abs(current_date - repo_status.last_checked::date) >= 1
+      FOR UPDATE SKIP LOCKED
       LIMIT 1;
     SQL
   end
@@ -194,6 +248,7 @@ module CrystalDoc::Queries
   end
 
   def self.upsert_repo_status(db : Queriable, last_commit : String, repo_id : Int32)
+    puts "Updating repo #{repo_id} status with last commit #{last_commit}"
     db.exec(<<-SQL, last_commit, repo_id)
       INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
       VALUES (
@@ -205,7 +260,7 @@ module CrystalDoc::Queries
         $1,
         now()
       )
-      ON CONFLICT(repo_id) DO UPDATE SET last_checked = EXCLUDED.last_checked
+      ON CONFLICT(repo_id) DO UPDATE SET (last_commit, last_checked) = (EXCLUDED.last_commit, EXCLUDED.last_checked)
     SQL
   end
 

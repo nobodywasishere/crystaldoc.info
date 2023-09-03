@@ -1,0 +1,24 @@
+<p>There are <%= CrystalDoc::DocJob.count(db) %> jobs in the queue. This data refreshes every 10 seconds.</p>
+
+<table>
+  <% jobs = CrystalDoc::DocJob.select(db, limit) %>
+
+  <tr>
+    <th>Priority</th>
+    <th>Age</th>
+    <th>Source</th>
+    <th>Version</th>
+  </tr>
+  <%- jobs.each do |job| -%>
+    <tr>
+      <td><%= job.priority %></td>
+      <td><%= CrystalDoc::Views.format_span(job.job_age.to_span) %></td>
+      <td class="word-breakable">
+        <a href="<%= job.source_url %>">
+          <%= job.source_url.sub(/https:\/\//, "") %>
+        </a>
+      </td>
+      <td><%= job.commit_id %></td>
+    </tr>
+  <%- end -%>
+</table>
