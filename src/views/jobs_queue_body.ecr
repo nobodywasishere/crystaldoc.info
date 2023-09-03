@@ -1,7 +1,7 @@
-<p>There are <%= CrystalDoc::DocJob.count(db) %> jobs in the queue. This data refreshes every 10 seconds.</p>
+<p>There are <%= CrystalDoc::DocJob.count(REPO_DB) %> jobs in the queue. This data refreshes every 10 seconds.</p>
 
 <table>
-  <% jobs = CrystalDoc::DocJob.select(db, limit) %>
+  <% jobs = CrystalDoc::DocJob.select(REPO_DB, limit) %>
 
   <tr>
     <th>Priority</th>

@@ -1,6 +1,6 @@
 require "./crystaldoc"
 
-db = DB.open(ENV["POSTGRES_DB"])
+REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
 # Queue builders
 (1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do
@@ -8,7 +8,7 @@ db = DB.open(ENV["POSTGRES_DB"])
     loop do
       puts "Searching for a new job..."
 
-      db.transaction do |tx|
+      REPO_DB.transaction do |tx|
         conn = tx.connection
 
         # Get new job from server

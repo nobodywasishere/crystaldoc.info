@@ -1,12 +1,12 @@
 require "./crystaldoc"
 
-db = DB.open(ENV["POSTGRES_DB"])
+REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
 # Version checker
 (1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do
   spawn do
     loop do
-      db.transaction do |tx|
+      REPO_DB.transaction do |tx|
         conn = tx.connection
 
         # go through every repo
@@ -22,14 +22,14 @@ db = DB.open(ENV["POSTGRES_DB"])
         end
 
         puts "Getting repo_id..."
-        repo_id = db.query_one(<<-SQL, repo["service"], repo["username"], repo["project_name"], as: Int32)
+        repo_id = conn.query_one(<<-SQL, repo["service"], repo["username"], repo["project_name"], as: Int32)
           SELECT repo.id
           FROM crystal_doc.repo
           WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
         SQL
 
         puts "Getting source_url..."
-        source_url = db.query_one(<<-SQL, repo_id, as: String)
+        source_url = conn.query_one(<<-SQL, repo_id, as: String)
           SELECT repo.source_url
           FROM crystal_doc.repo
           WHERE repo.id = $1
