@@ -10,7 +10,7 @@ class CrystalDoc::Builder
   def initialize(@source_url, @service, @username, @project_name, @version)
   end
 
-  def build : Nil
+  def build : Bool
     # git clone to temp folder
     log "Cloning repo..."
     unless git_clone_repo.success?
@@ -69,6 +69,8 @@ class CrystalDoc::Builder
       raise "Failed to copy docs to destination folder"
     end
     log "Success."
+
+    return true
   rescue ex
     puts "Builder Exception: #{ex.inspect}"
     puts "  #{ex.backtrace.join("\n  ")}"
@@ -82,6 +84,8 @@ class CrystalDoc::Builder
     # render build failure template
     File.write "./public#{repo_path}/#{version}/index.html",
       CrystalDoc::Views::BuildFailureTemplate.new(source_url)
+
+    return false
   ensure
     # ensure removal of temp folder
     `rm -rf "#{temp_folder}"`

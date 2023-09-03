@@ -106,6 +106,28 @@ textarea {
   font-size: 16px;
 }
 
+table {
+  font-size: 14px;
+  background: #fdfdfd;
+  border-collapse: collapse;
+  width: 100%;
+  text-align: center;
+  border: 1px solid #ccc;
+  overflow: hidden;
+  padding: 10px;
+}
+
+table th {
+  padding: 10px;
+  letter-spacing: 1px;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+}
+
+table td {
+  padding: 10px;
+}
+
 #search-box {
   width: 100%;
   padding: 10px;
@@ -113,13 +135,36 @@ textarea {
   box-sizing: border-box;
 }
 
-@media only screen and (max-width: 635px) {
+#new-url-box {
+  width: 400px;
+}
+
+.word-breakable {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  -ms-word-break: break-all;
+  word-break: break-all;
+  word-break: break-word;
+}
+
+a.no-decoration {
+  color: #333;
+  text-decoration: none;
+}
+
+a.no-decoration:hover {
+  color: #333;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media only screen and (max-width: 745px) {
   .main-content {
     max-width: 100%;
   }
 
   #new-url-box {
-    width: auto;
+    width: 100%;
   }
 }
 
@@ -164,7 +209,8 @@ textarea {
     background-color: #202020;
   }
 
-  pre {
+  pre,
+  table {
     color: white;
     background: #202020;
     border: 1px solid #353535;
@@ -176,5 +222,18 @@ textarea {
 
   li>a:hover {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+  }
+
+  table th {
+    border-top: 1px solid #353535;
+    border-bottom: 1px solid #353535;
+  }
+
+  a.no-decoration {
+    color: white;
+  }
+
+  a.no-decoration:hover {
+    color: white;
   }
 }

@@ -20,6 +20,7 @@ CREATE TABLE repo_version (
     repo_id int references repo on delete cascade,
     commit_id text not null,
     nightly bool default false,
+    valid bool default false,
     unique (repo_id, commit_id)
 );
 

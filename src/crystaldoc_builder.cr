@@ -1,45 +1,52 @@
 require "./crystaldoc"
 
+db = DB.open(ENV["POSTGRES_DB"])
+
 # Queue builders
 (1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do
   spawn do
     loop do
-      DB.open(ENV["POSTGRES_DB"]) do |db|
-        db.transaction do |tx|
-          puts "Searching for a new job..."
+      puts "Searching for a new job..."
 
-          conn = tx.connection
+      db.transaction do |tx|
+        conn = tx.connection
 
-          # Get new job from server
-          jobs = CrystalDoc::DocJob.take(conn)
+        # Get new job from server
+        jobs = CrystalDoc::DocJob.take(conn)
 
-          if jobs.empty?
-            puts "No jobs found."
-            sleep(10)
-            next
-          else
-            job = jobs.first
-          end
+        if jobs.empty?
+          puts "No jobs found."
+          break
+        else
+          job = jobs.first
+        end
 
-          puts "Building docs for #{job.inspect}"
+        puts "Building docs for #{job.inspect}"
 
-          # execute doc generation
-          repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
+        # execute doc generation
+        repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
 
-          builder = CrystalDoc::Builder.new(
-            job.source_url,
-            repo["service"],
-            repo["username"],
-            repo["project_name"],
-            job.commit_id
+        builder = CrystalDoc::Builder.new(
+          job.source_url,
+          repo["service"],
+          repo["username"],
+          repo["project_name"],
+          job.commit_id
+        )
+
+        result = builder.build
+
+        if result
+          CrystalDoc::Queries.mark_version_valid(
+            conn, job.commit_id, repo["service"], repo["username"], repo["project_name"]
           )
-
-          builder.build
         end
       rescue ex
         puts "Worker Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}"
-        sleep 10
+        tx.try &.rollback if ex.is_a? PG::Error
       end
+
+      sleep(15)
     end
   end
 end
