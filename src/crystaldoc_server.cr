@@ -52,19 +52,8 @@ get "/:serv/:user/:proj/versions.json" do |env|
 end
 
 get "/random" do |env|
-  repos = CrystalDoc::Queries.rs_to_repo(REPO_DB.query(<<-SQL))
-    SELECT DISTINCT repo.service, repo.username, repo.project_name, RANDOM()
-    FROM crystal_doc.repo
-    INNER JOIN crystal_doc.repo_version
-      ON repo_version.repo_id = repo.id
-    WHERE repo_version.valid = true
-    ORDER BY RANDOM()
-    LIMIT 1;
-  SQL
-
-  if repos.size > 0
-    env.redirect repos.first["path"]
-  end
+  repo = CrystalDoc::Queries.random_repo(REPO_DB)
+  env.redirect repo.path
 end
 
 post "/search" do |env|

@@ -1,7 +1,7 @@
 module CrystalDoc::Queries
   # Returns the current latest version as a string for a service/username/project_name combination
-  def self.latest_version(db : Queriable, service : String, username : String, project_name : String) : String?
-    rs = db.query(<<-SQL, service, username, project_name)
+  def self.latest_version(db : Queriable, service : String, username : String, project_name : String) : String
+    db.query_all(<<-SQL, service, username, project_name, as: {String}).first
       SELECT repo_version.commit_id
       FROM crystal_doc.repo_version
       INNER JOIN crystal_doc.repo_status
@@ -11,12 +11,6 @@ module CrystalDoc::Queries
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
       LIMIT 1;
     SQL
-
-    rs.each do
-      return rs.read(String)
-    end
-
-    nil
   end
 
   def self.update_latest_repo_version(db : Queriable, repo_id : Int32, latest_version_id : Int32)
@@ -35,18 +29,11 @@ module CrystalDoc::Queries
   end
 
   def self.current_repo_versions(db : Queriable, repo_id) : Array(String)
-    rs = db.query(<<-SQL, repo_id)
+    db.query_all(<<-SQL, repo_id, as: {String})
       SELECT repo_version.commit_id
       FROM crystal_doc.repo_version
       WHERE repo_version.repo_id = $1
     SQL
-
-    tags = [] of String
-    rs.each do
-      tags << rs.read(String)
-    end
-
-    tags
   end
 
   def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
@@ -121,7 +108,7 @@ module CrystalDoc::Queries
   end
 
   def self.versions_json(db : Queriable, service : String, username : String, project_name : String) : String
-    versions_rs = db.query(<<-SQL, service, username, project_name)
+    versions = db.query_all(<<-SQL, service, username, project_name, as: {RepoVersion})
       SELECT repo_version.commit_id, repo_version.nightly
       FROM crystal_doc.repo_version
       INNER JOIN crystal_doc.repo
@@ -130,46 +117,54 @@ module CrystalDoc::Queries
       ORDER BY repo_version.id ASC
     SQL
 
-    versions = [] of Hash(String, String | Bool)
+    output = [] of Hash(String, String | Bool)
 
-    versions_rs.each do
-      commit_id = versions_rs.read(String)
-      nightly = versions_rs.read(Bool)
-
-      versions << {
-        "name"     => commit_id,
-        "url"      => "/#{service}/#{username}/#{project_name}/#{commit_id}/",
-        "released" => !nightly,
+    versions.each do |version|
+      output << {
+        "name"     => version.commit_id.to_s,
+        "url"      => "/#{service}/#{username}/#{project_name}/#{version.commit_id}/",
+        "released" => !version.nightly,
       }
     end
 
-    if versions.empty?
+    if output.empty?
       return {"versions" => [] of String}.to_json
     end
 
-    {"versions" => [versions.first] + versions[1..].reverse}.to_json
+    {"versions" => [output.first] + output[1..].reverse}.to_json
   end
 
-  def self.find_repo(db : Queriable, user : String, proj : String) : Array(Hash(String, String))
-    rs_to_repo(db.query(<<-SQL, user, proj))
-      SELECT DISTINCT service, username, project_name, distance
+  def self.find_repo(db : Queriable, user : String, proj : String) : Array(Repo)
+    db.query_all(<<-SQL, user, proj, as: {Repo})
+      SELECT DISTINCT service, username, project_name, user_distance, proj_distance
       FROM (
-        SELECT repo.service, repo.username, repo.project_name, repo.id, (LEAST(
-          levenshtein_less_equal(repo.username, $1, 21, 1, 21, 20),
-          levenshtein_less_equal(repo.project_name, $2, 21, 1, 21, 20)
-        )) AS distance
+        SELECT repo.service, repo.username, repo.project_name, repo.id,
+        (levenshtein_less_equal(repo.username, $1, 21, 1, 10, 10)) AS user_distance,
+        (levenshtein_less_equal(repo.project_name, $2, 21, 1, 10, 10)) AS proj_distance
         FROM crystal_doc.repo
       ) AS repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true AND distance <= 20
-      ORDER BY distance
+      WHERE repo_version.valid = true AND user_distance <= 20 AND proj_distance <= 20
+      ORDER BY user_distance, proj_distance
       LIMIT 10;
     SQL
   end
 
-  def self.recently_added_repos(db : Queriable, count : Int32 = 10)
-    rs_to_repo(db.query(<<-SQL, count))
+  def self.random_repo(db : Queriable) : Repo
+    db.query_one(<<-SQL, as: Repo)
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, RANDOM()
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true
+      ORDER BY RANDOM()
+      LIMIT 1;
+    SQL
+  end
+
+  def self.recently_added_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
+    db.query_all(<<-SQL, count, as: {Repo})
       SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.id
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
@@ -180,8 +175,8 @@ module CrystalDoc::Queries
     SQL
   end
 
-  def self.repo_needs_updating(db : Queriable) : Array(Hash(String, String))
-    rs_to_repo(db.query(<<-SQL))
+  def self.repo_needs_updating(db : Queriable) : Array(Repo)
+    db.query_all(<<-SQL, as: {Repo})
       SELECT service, username, project_name, abs(current_date - repo_status.last_checked::date) as date_diff
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_status
@@ -190,21 +185,6 @@ module CrystalDoc::Queries
       FOR UPDATE SKIP LOCKED
       LIMIT 1;
     SQL
-  end
-
-  def self.rs_to_repo(rs : PG::ResultSet) : Array(Hash(String, String))
-    repos = [] of Hash(String, String)
-
-    rs.each do
-      repos << {
-        "service"      => service = rs.read(String),
-        "username"     => username = rs.read(String),
-        "project_name" => project_name = rs.read(String),
-        "path"         => "/#{service}/#{username}/#{project_name}",
-      }
-    end
-
-    repos
   end
 
   def self.repo_exists(db : Queriable, service : String, username : String, project_name : String) : Bool
@@ -227,8 +207,8 @@ module CrystalDoc::Queries
     SQL
   end
 
-  def self.repo_from_source(db : Queriable, source_url : String) : Array(Hash(String, String))
-    rs_to_repo(db.query(<<-SQL, source_url))
+  def self.repo_from_source(db : Queriable, source_url : String) : Array(Repo)
+    db.query_all(<<-SQL, source_url, as: {Repo})
       SELECT repo.service, repo.username, repo.project_name
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
