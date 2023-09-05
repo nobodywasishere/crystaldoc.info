@@ -28,9 +28,9 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
         builder = CrystalDoc::Builder.new(
           job.source_url,
-          repo["service"],
-          repo["username"],
-          repo["project_name"],
+          repo.service,
+          repo.username,
+          repo.project_name,
           job.commit_id
         )
 
@@ -38,7 +38,7 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
         if result
           CrystalDoc::Queries.mark_version_valid(
-            conn, job.commit_id, repo["service"], repo["username"], repo["project_name"]
+            conn, job.commit_id, repo.service, repo.username, repo.project_name
           )
         end
       rescue ex
@@ -46,7 +46,7 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
         tx.try &.rollback if ex.is_a? PG::Error
       end
 
-      sleep(15)
+      sleep(10)
     end
   end
 end

@@ -10,6 +10,7 @@ alias Queriable = DB::Connection | DB::Database
 require "./crystaldoc/vcs"
 require "./crystaldoc/html"
 require "./crystaldoc/views"
+require "./crystaldoc/objects"
 require "./crystaldoc/queries"
 require "./crystaldoc/doc_job"
 require "./crystaldoc/builder"

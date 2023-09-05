@@ -20,7 +20,7 @@ module CrystalDoc
     end
 
     class RepoList
-      getter repos : Array(Hash(String, String))
+      getter repos : Array(Repo)
 
       def initialize(@repos)
       end

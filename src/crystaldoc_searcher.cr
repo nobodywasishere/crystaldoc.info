@@ -17,12 +17,12 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
           puts "No repos need updating."
           break
         else
-          puts "Refreshing repo #{repos.first["path"]}"
+          puts "Refreshing repo #{repos.first.path}"
           repo = repos.first
         end
 
         puts "Getting repo_id..."
-        repo_id = conn.query_one(<<-SQL, repo["service"], repo["username"], repo["project_name"], as: Int32)
+        repo_id = conn.query_one(<<-SQL, repo.service, repo.username, repo.project_name, as: Int32)
           SELECT repo.id
           FROM crystal_doc.repo
           WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
@@ -55,7 +55,7 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
         end
 
         nightly_id = CrystalDoc::Queries.repo_nightly_version_id(conn,
-          repo["service"], repo["username"], repo["project_name"]
+          repo.service, repo.username, repo.project_name
         )
         CrystalDoc::Queries.insert_doc_job(conn, nightly_id, CrystalDoc::DocJob::LATEST_PRIORITY)
         CrystalDoc::Queries.upsert_repo_status(conn, current_commit_hash, repo_id)
@@ -67,7 +67,7 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
         tx.try &.rollback if ex.is_a? PG::Error
       end
 
-      sleep(15)
+      sleep(10)
     end
   end
 end

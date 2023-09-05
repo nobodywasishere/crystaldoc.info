@@ -18,7 +18,7 @@ class CrystalDoc::DocJob
 
   # Should only be called from a transaction
   def self.take(db : Queriable) : Array(DocJob)
-    db.query(<<-SQL) { |rs| CrystalDoc::DocJob.from_rs(rs) }
+    db.query_all(<<-SQL, as: {DocJob})
       DELETE
       FROM crystal_doc.doc_job
       USING (
@@ -39,7 +39,7 @@ class CrystalDoc::DocJob
   end
 
   def self.select(db : Queriable, limit : Int32) : Array(DocJob)?
-    db.query(<<-SQL, limit) { |rs| CrystalDoc::DocJob.from_rs(rs) }
+    db.query_all(<<-SQL, limit, as: {DocJob})
       SELECT job.id, job.priority, age(now(), job.queue_time) as job_age, repo.source_url, repo_version.commit_id
       FROM crystal_doc.repo_version
       INNER JOIN crystal_doc.doc_job job
