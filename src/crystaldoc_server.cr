@@ -11,7 +11,26 @@ File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
 
 REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
+cache_vals = {} of String => String?
+cache_times = {} of String => Time
+cache_time = Time::Span.new(minutes: 1)
+
+def cache(name : String, time : Time::Span, cache_vals, cache_times, &) : String?
+  if !cache_vals.keys.includes?(name) || (Time.utc - cache_times[name]).abs > time
+    cache_vals[name] = yield
+    cache_times[name] = Time.utc
+  end
+
+  cache_vals[name]
+end
+
 get "/" do
+  repo_list = cache("repo_list", cache_time, cache_vals, cache_times) {
+    CrystalDoc::Views::RepoList.new(
+      CrystalDoc::Queries.recently_added_repos(REPO_DB, 10)
+    ).to_s
+  }
+
   render "src/views/main.ecr", "src/views/layout.ecr"
 end
 
@@ -25,14 +44,17 @@ get "/:serv/:user/:proj" do |env|
 end
 
 get "/:serv/:user/:proj/latest" do |env|
-  latest_version = CrystalDoc::Queries.latest_version(REPO_DB,
-    env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
-  )
+  cache_name = "latest_version_#{env.params.url["serv"]}_#{env.params.url["user"]}_#{env.params.url["proj"]}"
+  latest_version = cache(cache_name, cache_time, cache_vals, cache_times) {
+    CrystalDoc::Queries.latest_version(REPO_DB,
+      env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
+    )
+  }
 
-  unless latest_version.nil?
-    env.redirect "./#{latest_version}/index.html"
-  else
+  if latest_version.nil?
     env.response.status_code = 404
+  else
+    env.redirect "./#{latest_version}/index.html"
   end
 end
 
@@ -46,9 +68,12 @@ get "/:serv/:user/:proj/:version" do |env|
 end
 
 get "/:serv/:user/:proj/versions.json" do |env|
-  CrystalDoc::Queries.versions_json(REPO_DB,
-    env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
-  )
+  cache_name = "versions_json_#{env.params.url["serv"]}_#{env.params.url["user"]}_#{env.params.url["proj"]}"
+  cache(cache_name, cache_time, cache_vals, cache_times) {
+    CrystalDoc::Queries.versions_json(REPO_DB,
+      env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
+    )
+  }
 end
 
 get "/random" do |env|
