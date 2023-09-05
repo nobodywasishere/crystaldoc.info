@@ -9,6 +9,7 @@ module CrystalDoc::Queries
       INNER JOIN crystal_doc.repo
         ON repo.id = repo_version.repo_id
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
+      ORDER BY repo_version.id DESC
       LIMIT 1;
     SQL
   end
