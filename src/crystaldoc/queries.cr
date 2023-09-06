@@ -1,4 +1,6 @@
 module CrystalDoc::Queries
+  Log = ::Log.for(self)
+
   # Returns the current latest version as a string for a service/username/project_name combination
   def self.latest_version(db : Queriable, service : String, username : String, project_name : String) : String
     db.query_all(<<-SQL, service, username, project_name, as: {String}).first
@@ -62,7 +64,7 @@ module CrystalDoc::Queries
       next if current_version_tags.includes? tag
 
       # add versions to versions table
-      puts "New version for repo #{repo_id}: #{tag}"
+      Log.info { "New version for repo #{repo_id}: #{tag}" }
       id = insert_repo_version(db, repo_id, tag, false)
 
       last_version_id = id
@@ -229,7 +231,7 @@ module CrystalDoc::Queries
   end
 
   def self.upsert_repo_status(db : Queriable, last_commit : String, repo_id : Int32)
-    puts "Updating repo #{repo_id} status with last commit #{last_commit}"
+    Log.info { "Updating repo #{repo_id} status with last commit #{last_commit}" }
     db.exec(<<-SQL, last_commit, repo_id)
       INSERT INTO crystal_doc.repo_status (repo_id, last_commit, last_checked)
       VALUES (
@@ -246,7 +248,7 @@ module CrystalDoc::Queries
   end
 
   def self.insert_doc_job(db : Queriable, version_id : Int32, priority : Int32)
-    puts "Inserting doc job for #{version_id}"
+    Log.info { "Inserting doc job for #{version_id}" }
     db.exec(<<-SQL, version_id, priority)
       INSERT INTO crystal_doc.doc_job (version_id, priority)
       VALUES ($1, $2)

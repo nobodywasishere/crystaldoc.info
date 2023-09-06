@@ -7,16 +7,14 @@ module CrystalDoc
     # then yields the lexbor representation of the file and its path to the block;
     # when the block finishes, the changes are written back to the html file.
     def self.post_process(path : String, &)
-      Dir.cd(path) do
-        Dir.glob("**/*.html").each do |file_path|
-          File.open(file_path, mode: "r+") do |file|
-            html = Lexbor::Parser.new(file)
-            yield html, file_path
-            modified = html.to_html
-            file.rewind
-            file.truncate
-            file.print modified
-          end
+      Dir.glob("#{path}/**/*.html").each do |file_path|
+        File.open(file_path, mode: "r+") do |file|
+          html = Lexbor::Parser.new(file)
+          yield html, file_path
+          modified = html.to_html
+          file.rewind
+          file.truncate
+          file.print modified
         end
       end
     end

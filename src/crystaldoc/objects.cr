@@ -7,6 +7,9 @@ module CrystalDoc
     getter username : String
     getter project_name : String
 
+    def initialize(@service : String, @username : String, @project_name : String)
+    end
+
     def path
       "/#{service}/#{username}/#{project_name}"
     end
