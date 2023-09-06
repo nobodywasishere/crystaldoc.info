@@ -32,9 +32,7 @@ module CrystalDoc
       span = span.abs
       time = [] of String
       time << " #{span.days}d" if span.total_days.floor > 0
-      time << " #{span.hours}h" if span.total_hours.floor > 0
-      time << " #{span.minutes}m" if span.total_minutes.floor > 0
-      time << " #{span.seconds}s"
+      time << " %02d:%02d:%02d" % [span.hours, span.minutes, span.seconds]
       time.join("").strip
     end
   end

@@ -1,6 +1,8 @@
 require "html"
 
 class CrystalDoc::Builder
+  Log = ::Log.for(self)
+
   getter source_url : String
   getter service : String
   getter username : String
@@ -11,69 +13,52 @@ class CrystalDoc::Builder
   end
 
   def build : Bool
-    # git clone to temp folder
-    log "Cloning repo..."
     unless git_clone_repo.success?
+      Log.error { "Failed to clone URL: #{source_url}" }
       raise "Failed to clone URL: #{source_url}"
     end
-    log "Success."
 
-    log "Checking out version #{version}..."
-    # force checkout specific version
     unless git_checkout.success?
+      Log.error { "Failed to checkout version #{version}" }
       raise "Failed to checkout version #{version}"
     end
-    log "Success."
 
-    # remove ./docs folder
+    Log.info { "Removing existing docs folder..." }
     execute("rm", ["-rf", "#{temp_folder}/docs"])
 
-    log "Pre processing..."
-    pre_process
-    log "Success."
-
-    # shards install
-    log "Running shards install..."
     unless shards_install.success?
+      Log.error { "Failed to install shards" }
       raise "Failed to install shards"
     end
-    log "Success."
 
-    # build docs
-    log "Building docs..."
     unless crystal_doc.success?
+      Log.error { "Failed to build docs" }
       raise "Failed to build docs"
     end
-    log "Success."
 
-    # post process
-    log "Post processing..."
     post_process
-    log "Success."
 
     # make destination folder if necessary
-    log "Deleting destination folder..."
+    Log.info { "Deleting destination folder..." }
     execute("rm", ["-rf", "../public#{repo_path}/#{version}"])
-    log "Success."
 
     # make destination folder if necessary
-    log "Creating destination folder..."
+    Log.info { "Creating destination folder..." }
     unless execute("mkdir", ["-p", "../public#{repo_path}"]).success?
+      Log.error { "Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
-    log "Success."
 
-    log "Copying docs to destination folder..."
     # move ./docs folder to destination folder
+    Log.info { "Copying docs to destination folder..." }
     unless execute("mv", ["docs", "../public#{repo_path}/#{version}"]).success?
+      Log.error { "Failed to copy docs to destination folder" }
       raise "Failed to copy docs to destination folder"
     end
-    log "Success."
 
     return true
   rescue ex
-    puts "Builder Exception: #{ex.inspect}"
-    puts "  #{ex.backtrace.join("\n  ")}"
+    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
     # remove destination folder
     `rm -rf "./public#{repo_path}/#{version}"`
@@ -100,23 +85,49 @@ class CrystalDoc::Builder
   end
 
   private def git_clone_repo : Process::Status
-    Process.run(
+    Log.info { "Cloning repo..." }
+
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    result = Process.run(
       "git",
       ["clone", source_url, temp_folder],
-      env: {"GIT_TERMINAL_PROMPT" => "0"}
+      env: {"GIT_TERMINAL_PROMPT" => "0"},
+      output: stdout, error: stderr
     )
+
+    Log.info { stdout.to_s }
+    Log.error { stderr.to_s }
+
+    result
   end
 
   private def git_checkout : Process::Status
-    Process.run(
+    Log.info { "Checking out version #{version}..." }
+
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    result = Process.run(
       "git",
       ["checkout", "--force", version],
       env: {"GIT_TERMINAL_PROMPT" => "0"},
-      chdir: temp_folder
+      chdir: temp_folder,
+      output: stdout, error: stderr
     )
+
+    Log.info { stdout.to_s }
+    Log.error { stderr.to_s }
+
+    result
   end
 
   private def shards_install : Process::Status
+    Log.info { "Running shards install..." }
+
+    Dir.mkdir("#{temp_folder}/lib")
+
     safe_execute(
       "shards",
       [
@@ -125,64 +136,85 @@ class CrystalDoc::Builder
         "--skip-postinstall",
         "--skip-executables",
       ],
-      temp_folder,
-      temp_folder
+      rw_dirs: ["#{temp_folder}/lib", "#{temp_folder}/shard.lock"],
+      ro_dirs: [temp_folder],
+      networking: true
     )
   end
 
   private def crystal_doc : Process::Status
+    Log.info { "Building docs..." }
+
+    Dir.mkdir("#{temp_folder}/docs")
+
     safe_execute(
       "crystal",
       [
         "doc",
         "--json-config-url=#{repo_path}/versions.json",
         "--source-refname=#{version}",
+        "--project-version=#{version}",
       ],
-      temp_folder,
-      temp_folder
+      rw_dirs: ["#{temp_folder}/docs"],
+      ro_dirs: [temp_folder],
+      networking: false
     )
   end
 
   private def execute(cmd : String, args : Array(String)) : Process::Status
-    Process.run(
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    Log.debug { "Executing: #{cmd} #{args.join(" ")}" }
+
+    result = Process.run(
       cmd, args,
-      chdir: temp_folder
+      chdir: temp_folder,
+      output: stdout, error: stderr
     )
+
+    Log.info { stdout.to_s }
+    Log.error { stderr.to_s }
+
+    result
   end
 
-  private def safe_execute(cmd : String, args : Array(String), rw_dir : String, ro_dir : String) : Process::Status
-    Process.run("firejail", [
+  def safe_execute(cmd : String, args : Array(String),
+                   rw_dirs : Array(String), ro_dirs : Array(String),
+                   networking : Bool = false) : Process::Status
+    fj_args = [
       "--noprofile",
-      "--read-only=#{ro_dir}",
-      "--read-write=#{rw_dir}",
       "--restrict-namespaces",
       "--rlimit-as=3g",
       "--timeout=00:15:00",
-      cmd,
-      *args,
-    ],
-      output: STDOUT, error: STDERR,
-      chdir: temp_folder
+    ]
+
+    fj_args += ro_dirs.map { |d| "--read-only=#{d}" }
+    fj_args += rw_dirs.map { |d| "--read-write=#{d}" }
+
+    fj_args += ["--net=none"] unless networking
+
+    fj_args += [cmd, *args]
+
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    Log.debug { "Safe executing: firejail #{fj_args.join(" ")}" }
+
+    result = Process.run("firejail", fj_args,
+      chdir: temp_folder,
+      output: stdout, error: stderr
     )
-  end
 
-  private def pre_process : Nil
-    # For each file, read and modify
-    code_block = false
-    "".each_line do |line|
-      if /^\s*#/.match(line)
-        if line.includes? "```"
-          code_block = !code_block
-        end
+    Log.info { stdout.to_s }
+    Log.error { stderr.to_s }
 
-        unless code_block
-          line = HTML.escape(line)
-        end
-      end
-    end
+    result
   end
 
   private def post_process : Nil
+    Log.info { "Post processing..." }
+
     CrystalDoc::Html.post_process("#{temp_folder}/docs") do |html, file_path|
       sidebar_header = html.css(".sidebar-header").first
       sidebar_search_box = sidebar_header.css(".search-box").first
@@ -200,12 +232,6 @@ class CrystalDoc::Builder
           </small>
         </div>
       HTML
-    end
-  end
-
-  private def log(info : String)
-    if true
-      puts info
     end
   end
 end

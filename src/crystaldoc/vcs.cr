@@ -1,4 +1,6 @@
 class CrystalDoc::VCS
+  Log = ::Log.for(self)
+
   getter :source_url
 
   def initialize(@source_url : String)
@@ -37,7 +39,7 @@ class CrystalDoc::VCS
 
     "Successfully added repo"
   rescue ex
-    puts "VCS Exception: #{ex.to_s}:\n  #{ex.backtrace.join("\n  ")}"
+    Log.error { "VCS Exception: #{ex.to_s}:\n  #{ex.backtrace.join("\n  ")}" }
     "Failed to add repo"
   end
 
