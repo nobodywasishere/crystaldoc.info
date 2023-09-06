@@ -16,12 +16,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Install dependencies
+    - name: Install apt dependencies
       run: |
         apt update -y
-        apt install -y build-essential cmake
-        shards install
-    - name: Manually build lexbor lib
-      run: crystal lib/lexbor/src/ext/build_ext.cr
+        apt install -y software-properties-common
+        add-apt-repository ppa:deki/firejail
+        apt update -y
+        apt install -y build-essential cmake firejail
+    - name: Shards install
+      run: shards install
     - name: Run tests
       run: crystal spec
