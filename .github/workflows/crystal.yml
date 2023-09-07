@@ -19,11 +19,15 @@ jobs:
     - name: Install apt dependencies
       run: |
         apt update -y
-        apt install -y software-properties-common
-        add-apt-repository ppa:deki/firejail
-        apt update -y
-        apt install -y build-essential cmake firejail
+        apt install -y g++ cmake wget libapparmor-dev
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "netblue30/firejail"
+        latest: true
+        fileName: "*amd64.deb"
+    - name: Install firejail
+      run: apt install -y "./firejail_*"
     - name: Shards install
       run: shards install
     - name: Run tests
-      run: crystal spec
+      run: LOG_LEVEL=error crystal spec
