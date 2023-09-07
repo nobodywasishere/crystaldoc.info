@@ -97,8 +97,8 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { stdout.to_s }
-    Log.error { stderr.to_s }
+    Log.info { "git_clone_repo: " + stdout.to_s }
+    Log.error { "git_clone_repo: " + stderr.to_s }
 
     result
   end
@@ -117,8 +117,8 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { stdout.to_s }
-    Log.error { stderr.to_s }
+    Log.info { "git_checkout: " + stdout.to_s }
+    Log.error { "git_checkout: " + stderr.to_s }
 
     result
   end
@@ -136,8 +136,9 @@ class CrystalDoc::Builder
         "--skip-postinstall",
         "--skip-executables",
       ],
-      rw_dirs: ["#{temp_folder}/lib", "#{temp_folder}/shard.lock"],
-      ro_dirs: [temp_folder],
+      # Need to be able to create the shard.lock if it doesn't exist
+      rw_dirs: [temp_folder],
+      ro_dirs: [Path[temp_folder].parent.to_s],
       networking: true
     )
   end
@@ -165,7 +166,7 @@ class CrystalDoc::Builder
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
-    Log.debug { "Executing: #{cmd} #{args.join(" ")}" }
+    Log.info { "Executing: #{cmd} #{args.join(" ")}" }
 
     result = Process.run(
       cmd, args,
@@ -173,8 +174,8 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { stdout.to_s }
-    Log.error { stderr.to_s }
+    Log.info { "execute #{cmd}: " + stdout.to_s }
+    Log.error { "execute #{cmd}: " + stderr.to_s }
 
     result
   end
@@ -199,15 +200,15 @@ class CrystalDoc::Builder
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
-    Log.debug { "Safe executing: firejail #{fj_args.join(" ")}" }
+    Log.info { "Safe executing: firejail #{fj_args.join(" ")}" }
 
     result = Process.run("firejail", fj_args,
       chdir: temp_folder,
       output: stdout, error: stderr
     )
 
-    Log.info { stdout.to_s }
-    Log.error { stderr.to_s }
+    Log.info { "safe execute #{cmd}: " + stdout.to_s }
+    Log.error { "safe execute #{cmd}: " + stderr.to_s }
 
     result
   end

@@ -4,7 +4,20 @@ require "pg"
 
 require "./crystaldoc"
 
+# Logging setup
+
+Dir.mkdir_p "./logs"
+log_file = File.new("./logs/server.log", "a+")
+
+Log.setup(:info, Log::IOBackend.new(log_file))
+Kemal.config.logger = Kemal::LogHandler.new(log_file)
+
+# Kemal setup
+
 serve_static({"gzip" => true, "dir_listing" => false})
+Log.info { "Starting crystaldoc server" }
+
+# Export main CSS file
 
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
@@ -87,7 +100,7 @@ post "/new_repository" do |env|
     vcs.parse(REPO_DB)
   end
 rescue ex
-  puts "NewRepo Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}"
+  Log.error { "NewRepo Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 end
 
 error 404 do |env|

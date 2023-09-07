@@ -1,12 +1,21 @@
 require "./crystaldoc"
 
+Dir.mkdir_p "./logs"
+log_file = File.new("./logs/builder.log", "a+")
+
+Log.setup(:info, Log::IOBackend.new(log_file))
+
 REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
 # Queue builders
-(1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do
+(1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do |idx|
   spawn do
+    log = ::Log.for("builder").for("#{idx}")
+
+    log.info { "#{idx}: Starting crystaldoc builder" }
+
     loop do
-      puts "Searching for a new job..."
+      log.info { "#{idx}: Searching for a new job..." }
 
       REPO_DB.transaction do |tx|
         conn = tx.connection
@@ -15,13 +24,14 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
         jobs = CrystalDoc::DocJob.take(conn)
 
         if jobs.empty?
-          puts "No jobs found."
+          log.info { "#{idx}: No jobs found." }
+          sleep(50)
           break
         else
           job = jobs.first
         end
 
-        puts "Building docs for #{job.inspect}"
+        log.info { "#{idx}: Building docs for #{job.inspect}" }
 
         # execute doc generation
         repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
@@ -42,7 +52,7 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
           )
         end
       rescue ex
-        puts "Worker Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}"
+        log.error { "#{idx}: Worker Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
         tx.try &.rollback if ex.is_a? PG::Error
       end
 

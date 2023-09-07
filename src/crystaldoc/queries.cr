@@ -178,6 +178,19 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.recently_updated_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
+    db.query_all(<<-SQL, count, as: {Repo})
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, MAX(repo_version.id) as repo_version_id
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true AND repo_version.nightly = false
+      GROUP BY repo.service, repo.username, repo.project_name
+      ORDER BY repo_version_id DESC
+      LIMIT $1;
+    SQL
+  end
+
   def self.repo_needs_updating(db : Queriable) : Array(Repo)
     db.query_all(<<-SQL, as: {Repo})
       SELECT service, username, project_name, abs(current_date - repo_status.last_checked::date) as date_diff
@@ -254,6 +267,29 @@ module CrystalDoc::Queries
       VALUES ($1, $2)
       ON CONFLICT(version_id) DO NOTHING
       RETURNING id
+    SQL
+  end
+
+  def self.repo_count(db : Queriable)
+    db.scalar(<<-SQL).as(Int64)
+      SELECT COUNT(repo.id)
+      FROM crystal_doc.repo;
+    SQL
+  end
+
+  def self.repo_version_valid_count(db : Queriable)
+    db.scalar(<<-SQL).as(Int64)
+      SELECT COUNT(repo_version.id)
+      FROM crystal_doc.repo_version
+      WHERE repo_version.valid = true;
+    SQL
+  end
+
+  def self.repo_version_invalid_count(db : Queriable)
+    db.scalar(<<-SQL).as(Int64)
+      SELECT COUNT(repo_version.id)
+      FROM crystal_doc.repo_version
+      WHERE repo_version.valid = false;
     SQL
   end
 end
