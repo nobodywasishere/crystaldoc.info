@@ -289,7 +289,8 @@ module CrystalDoc::Queries
     db.scalar(<<-SQL).as(Int64)
       SELECT COUNT(repo_version.id)
       FROM crystal_doc.repo_version
-      WHERE repo_version.valid = false;
+      WHERE repo_version.valid = false
+      AND repo_version.id NOT IN (SELECT doc_job.version_id FROM crystal_doc.doc_job);
     SQL
   end
 end
