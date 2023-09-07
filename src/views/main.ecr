@@ -6,6 +6,12 @@
   Click <a href="/random">here</a> to go to a random repository.
 </p>
 
+<p>
+  Hosting documentation for <%= CrystalDoc::Queries.repo_count(REPO_DB) %> shards,
+  from which there are collectively <%= CrystalDoc::Queries.repo_version_valid_count(REPO_DB) %> versions with
+  documentation and <%= CrystalDoc::Queries.repo_version_invalid_count(REPO_DB) %> versions which failed to build.
+</p>
+
 <form onkeypress="return event.keyCode != 13;">
   <div>
     <input type="search" id="search-box" name="q" placeholder="Search shards..."
@@ -18,6 +24,10 @@
 <h2>Recently Added</h2>
 
 <%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.recently_added_repos(REPO_DB, 10)) %>
+
+<h2>Recently Updated</h2>
+
+<%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.recently_updated_repos(REPO_DB, 10)) %>
 
 <h2>Adding a shard</h2>
 
@@ -38,3 +48,7 @@
 </form>
 
 <p>Current status of documentation generation is available on the <a href="/jobs_queue">jobs queue</a>.</p>
+
+<h2>Contact</h2>
+
+If you run into issues with the site or your repositories documentation is failing to build, please create an issue on the crystaldoc.info <a href="https://github.com/nobodywasishere/crystaldoc.info/issues">GitHub</a>.

@@ -84,7 +84,7 @@ class CrystalDoc::VCS
              output: stdout,
              env: {"GIT_TERMINAL_PROMPT" => "0"}
            ).success?
-      raise "git ls-remote failed: #{stdout.to_s}"
+      raise "git ls-remote failed (#{source_url}): #{stdout.to_s}"
     end
     stdout.to_s.match(/ref: refs\/heads\/(.+)	HEAD/).try &.[1]
   end
@@ -101,7 +101,7 @@ class CrystalDoc::VCS
              output: stdout,
              env: {"GIT_TERMINAL_PROMPT" => "0"}
            ).success?
-      raise "git ls-remote failed: #{stdout.to_s}"
+      raise "git ls-remote failed (#{source_url}): #{stdout.to_s}"
     end
     stdout.to_s.match(/^(.+)\s+HEAD/).try &.[1]
   end
@@ -127,7 +127,7 @@ class CrystalDoc::VCS
              output: stdout,
              env: {"GIT_TERMINAL_PROMPT" => "0"}
            ).success?
-      raise "git ls-remote failed: #{stdout.to_s}"
+      raise "git ls-remote failed (#{source_url}): #{stdout.to_s}"
     end
 
     # stdio.each_line doesn't work for some reason, had to convert to string first
