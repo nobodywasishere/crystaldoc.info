@@ -21,12 +21,13 @@ jobs:
         apt update -y
         apt install -y g++ cmake wget libapparmor-dev
     - uses: robinraju/release-downloader@v1.8
+      id: dl_fj
       with:
         repository: "netblue30/firejail"
         latest: true
         fileName: "*amd64.deb"
     - name: Install firejail
-      run: apt install -y "./firejail_*"
+      run: apt install -y "${{ fromJson(steps.dl_fj.outputs.downloaded_files)[0] }}"
     - name: Shards install
       run: shards install
     - name: Run tests
