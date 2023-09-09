@@ -4,3 +4,6 @@
 /.shards/
 *.dwarf
 /logs
+/public/**/*
+!/public/assets
+!/public/assets/*
