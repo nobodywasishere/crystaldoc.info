@@ -184,7 +184,7 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true AND repo_version.nightly = false
+      WHERE repo_version.valid = true
       GROUP BY repo.service, repo.username, repo.project_name
       ORDER BY repo_version_id DESC
       LIMIT $1;

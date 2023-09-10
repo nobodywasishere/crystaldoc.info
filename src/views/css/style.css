@@ -128,15 +128,29 @@ table td {
   padding: 10px;
 }
 
-#search-box {
+.search-box {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
   box-sizing: border-box;
 }
 
-#new-url-box {
-  width: 400px;
+div.search-buttons {
+  display: flex;
+  text-align: center;
+  padding-top: 20px;
+}
+
+div.search-buttons>a {
+  border: 1px solid #ccc;
+  transition: box-shadow 0.3s ease;
+  text-decoration: none;
+  width: 100%;
+  padding: 10px;
+}
+
+div.search-buttons>a:hover {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
 }
 
 .word-breakable {
@@ -221,6 +235,14 @@ a.no-decoration:hover {
   }
 
   li>a:hover {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+  }
+
+  div.search-buttons>a {
+    border: 1px solid #353535;
+  }
+
+  div.search-buttons>a:hover {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
   }
 
