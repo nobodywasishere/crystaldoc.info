@@ -134,7 +134,7 @@ module CrystalDoc::Queries
       return {"versions" => [] of String}.to_json
     end
 
-    {"versions" => [output.first] + output[1..].reverse}.to_json
+    {"versions" => output.select { |v| !v["released"] } + output.select { |v| v["released"] }.reverse}.to_json
   end
 
   def self.find_repo(db : Queriable, user : String, proj : String) : Array(Repo)
