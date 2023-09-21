@@ -141,7 +141,9 @@ module CrystalDoc::Queries
     db.query_all(<<-SQL, user, proj, as: {Repo})
       SELECT DISTINCT service, username, project_name, source_url
       FROM crystal_doc.repo
-      WHERE position($1 in username) > 0 #{distinct ? "AND" : "OR"} position($2 in project_name) > 0
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true AND (position($1 in username) > 0 #{distinct ? "AND" : "OR"} position($2 in project_name) > 0)
       LIMIT 10;
     SQL
   end
