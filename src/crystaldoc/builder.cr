@@ -222,6 +222,10 @@ class CrystalDoc::Builder
       sidebar = html.css(".sidebar").first
       sidebar["style"] = "display: flex; flex-direction: column; padding-top: 8px"
 
+      html.head!.inner_html += <<-HTML
+        <script data-goatcounter="https://crystaldoc-info.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+      HTML
+
       sidebar.inner_html += <<-HTML
         <div style="margin-top: auto; padding: 27px 15px 9px 30px;">
           <small>
