@@ -33,6 +33,7 @@ when "regenerate-all"
   SQL
 
   versions.each do |version|
+    next if CrystalDoc::DocJob.in_queue?(REPO_DB, version)
     CrystalDoc::Queries.insert_doc_job(REPO_DB, version, 0)
   end
 when "regenerate"

@@ -50,10 +50,20 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
           CrystalDoc::Queries.mark_version_valid(
             conn, job.commit_id, repo.service, repo.username, repo.project_name
           )
+        else
+          CrystalDoc::Queries.mark_version_invalid(
+            conn, job.commit_id, repo.service, repo.username, repo.project_name
+          )
         end
       rescue ex
         log.error { "#{idx}: Worker Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
         tx.try &.rollback if ex.is_a? PG::Error
+
+        unless job.nil? || repo.nil?
+          CrystalDoc::Queries.mark_version_invalid(
+            REPO_DB, job.commit_id, repo.service, repo.username, repo.project_name
+          )
+        end
       end
 
       sleep(10)

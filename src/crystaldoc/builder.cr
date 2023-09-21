@@ -128,7 +128,7 @@ class CrystalDoc::Builder
   private def shards_install : Process::Status
     Log.info { "Running shards install..." }
 
-    Dir.mkdir("#{temp_folder}/lib")
+    Dir.mkdir_p("#{temp_folder}/lib")
 
     safe_execute(
       "shards",

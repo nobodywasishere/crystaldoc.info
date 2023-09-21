@@ -65,6 +65,16 @@ class CrystalDoc::DocJob
     SQL
   end
 
+  def self.in_queue?(db : Queriable, version_id : Int32) : Bool
+    db.query_one(<<-SQL, version_id, as: Bool)
+      SELECT EXISTS (
+        SELECT 1
+        FROM crystal_doc.doc_job
+        WHERE doc_job.version_id = $1
+      )
+    SQL
+  end
+
   def self.count(db : Queriable) : Int64
     db.scalar(<<-SQL).as(Int64)
       SELECT n_live_tup

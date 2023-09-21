@@ -99,6 +99,19 @@ module CrystalDoc::Queries
     SQL
   end
 
+  def self.mark_version_invalid(db : Queriable, commit : String, service : String, username : String, project_name : String)
+    db.exec(<<-SQL, commit, service, username, project_name)
+      UPDATE crystal_doc.repo_version
+      SET valid = false
+      FROM crystal_doc.repo
+      WHERE repo.id = repo_version.repo_id
+        AND repo_version.commit_id = $1
+        AND repo.service = $2
+        AND repo.username = $3
+        AND repo.project_name = $4
+    SQL
+  end
+
   def self.repo_nightly_version_id(db : Queriable, service : String, username : String, project_name : String) : Int32
     db.query_one(<<-SQL, service, username, project_name, as: Int32)
       SELECT repo_version.id
