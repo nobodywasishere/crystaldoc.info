@@ -73,10 +73,11 @@ post "/search" do |env|
   query = env.params.body["q"]
   if query.includes? "/"
     user, proj = query.split("/")[0..1]
-    proj = user if proj == ""
+    distinct = true
   else
     user = query
     proj = query
+    distinct = false
   end
   render "src/views/search_results.ecr" unless query == ""
 end

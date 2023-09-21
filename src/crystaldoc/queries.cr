@@ -137,19 +137,11 @@ module CrystalDoc::Queries
     {"versions" => output.select { |v| !v["released"] } + output.select { |v| v["released"] }.reverse}.to_json
   end
 
-  def self.find_repo(db : Queriable, user : String, proj : String) : Array(Repo)
+  def self.find_repo(db : Queriable, user : String, proj : String, distinct : Bool = false) : Array(Repo)
     db.query_all(<<-SQL, user, proj, as: {Repo})
-      SELECT DISTINCT service, username, project_name, source_url, user_distance, proj_distance
-      FROM (
-        SELECT repo.service, repo.username, repo.project_name, repo.id,
-        (levenshtein_less_equal(repo.username, $1, 21, 1, 10, 10)) AS user_distance,
-        (levenshtein_less_equal(repo.project_name, $2, 21, 1, 10, 10)) AS proj_distance
-        FROM crystal_doc.repo
-      ) AS repo
-      INNER JOIN crystal_doc.repo_version
-        ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true AND user_distance <= 20 AND proj_distance <= 20
-      ORDER BY user_distance, proj_distance
+      SELECT DISTINCT service, username, project_name, source_url
+      FROM crystal_doc.repo
+      WHERE position($1 in username) > 0 #{distinct ? "AND" : "OR"} position($2 in project_name) > 0
       LIMIT 10;
     SQL
   end
