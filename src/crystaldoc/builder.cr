@@ -13,6 +13,8 @@ class CrystalDoc::Builder
   end
 
   def build : Bool
+    `rm -rf "#{temp_folder}"`
+
     unless git_clone_repo.success?
       Log.error { "Failed to clone URL: #{source_url}" }
       raise "Failed to clone URL: #{source_url}"
