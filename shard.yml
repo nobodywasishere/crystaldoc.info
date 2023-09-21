@@ -19,6 +19,8 @@ targets:
     main: src/crystaldoc_builder.cr
   crystaldoc_searcher:
     main: src/crystaldoc_searcher.cr
+  crystaldoc_cli:
+    main: src/crystaldoc_cli.cr
 
 crystal: ~> 1.8
 
