@@ -134,7 +134,6 @@ class CrystalDoc::Builder
       "shards",
       [
         "install",
-        "--without-development",
         "--skip-postinstall",
         "--skip-executables",
       ],
