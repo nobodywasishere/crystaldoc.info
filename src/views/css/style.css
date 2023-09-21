@@ -23,19 +23,19 @@ ul {
   padding: 0;
 }
 
-li {
+ul.repo-list>li {
   margin: 0;
   border: 1px solid #ccc;
-}
-
-li>a {
   display: block;
   padding: 10px;
   transition: box-shadow 0.3s ease;
+}
+
+ul.repo-list>li>a {
   text-decoration: none;
 }
 
-li>a:hover {
+ul.repo-list>li:hover {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
 }
 
@@ -230,11 +230,11 @@ a.no-decoration:hover {
     border: 1px solid #353535;
   }
 
-  li {
+  ul.repo-list>li {
     border: 1px solid #353535;
   }
 
-  li>a:hover {
+  ul.repo-list>li:hover {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
   }
 

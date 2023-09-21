@@ -139,7 +139,7 @@ module CrystalDoc::Queries
 
   def self.find_repo(db : Queriable, user : String, proj : String) : Array(Repo)
     db.query_all(<<-SQL, user, proj, as: {Repo})
-      SELECT DISTINCT service, username, project_name, user_distance, proj_distance
+      SELECT DISTINCT service, username, project_name, source_url, user_distance, proj_distance
       FROM (
         SELECT repo.service, repo.username, repo.project_name, repo.id,
         (levenshtein_less_equal(repo.username, $1, 21, 1, 10, 10)) AS user_distance,
@@ -156,7 +156,7 @@ module CrystalDoc::Queries
 
   def self.random_repo(db : Queriable) : Repo
     db.query_one(<<-SQL, as: Repo)
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, RANDOM()
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, RANDOM()
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
@@ -168,7 +168,7 @@ module CrystalDoc::Queries
 
   def self.recently_added_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.id
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, repo.id
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
@@ -180,12 +180,12 @@ module CrystalDoc::Queries
 
   def self.recently_updated_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, MAX(repo_version.id) as repo_version_id
+      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, MAX(repo_version.id) as repo_version_id
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
       WHERE repo_version.valid = true
-      GROUP BY repo.service, repo.username, repo.project_name
+      GROUP BY repo.service, repo.username, repo.project_name, repo.source_url
       ORDER BY repo_version_id DESC
       LIMIT $1;
     SQL
@@ -193,7 +193,7 @@ module CrystalDoc::Queries
 
   def self.repo_needs_updating(db : Queriable) : Array(Repo)
     db.query_all(<<-SQL, as: {Repo})
-      SELECT service, username, project_name, abs(current_date - repo_status.last_checked::date) as date_diff
+      SELECT service, username, project_name, source_url, abs(current_date - repo_status.last_checked::date) as date_diff
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_status
         ON repo_status.repo_id = repo.id
@@ -225,7 +225,7 @@ module CrystalDoc::Queries
 
   def self.repo_from_source(db : Queriable, source_url : String) : Array(Repo)
     db.query_all(<<-SQL, source_url, as: {Repo})
-      SELECT repo.service, repo.username, repo.project_name
+      SELECT repo.service, repo.username, repo.project_name, repo.source_url
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
     SQL

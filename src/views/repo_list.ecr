@@ -1,10 +1,9 @@
 <% unless repos.nil? %>
-<ul>
+<ul class="repo-list">
   <% repos.each do |repo| %>
     <li>
-      <a href="<%= repo.path %>">
-        <%= "#{repo.username}/#{repo.project_name}" %> <small>(<%= repo.service %>)</small>
-      </a>
+      <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %></a>
+      <a href="<%= repo.source_url %>" style="float: right">(<%= repo.service %>)</a>
     </li>
   <% end %>
 </ul>
