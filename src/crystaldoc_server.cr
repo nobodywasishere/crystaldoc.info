@@ -38,6 +38,11 @@ get "/:serv/:user/:proj" do |env|
 end
 
 get "/:serv/:user/:proj/latest" do |env|
+  unless CrystalDoc::Queries.repo_exists_and_valid(REPO_DB, env.params.url["serv"], env.params.url["user"], env.params.url["proj"])
+    env.response.status_code = 404
+    next
+  end
+
   latest_version = CrystalDoc::Queries.latest_version(REPO_DB,
     env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
   )
@@ -105,10 +110,11 @@ rescue ex
 end
 
 error 404 do |env|
-  title = "This page doesn't exist"
+  title = ""
   msg = ""
 
   unless /(?:\/~?[a-zA-Z0-9\.\-_]+){4,}/.match(env.request.path)
+    title = "This page doesn't exist"
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
@@ -121,13 +127,17 @@ error 404 do |env|
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
+  if version == "latest"
+    title = "All repo versions failed to build docs"
+    msg = "All of the versions for repo '#{service}/#{user}/#{proj}' failed to build documentation"
+    next render "src/views/404.ecr", "src/views/layout.ecr"
+  end
+
   unless CrystalDoc::Queries.repo_version_exists(REPO_DB, service, user, proj, version)
     title = "Version doesn't exist"
     msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' doesn't exist"
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
-
-  # Check if doc generation in progress
 
   # Check if doc generation is queued
   if CrystalDoc::DocJob.in_queue?(REPO_DB, service, user, proj, version)
@@ -135,6 +145,8 @@ error 404 do |env|
     msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' is in the build queue"
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
+
+  title = "Repo version failed to build"
 
   # Shouldn't end up here
   render "src/views/404.ecr", "src/views/layout.ecr"

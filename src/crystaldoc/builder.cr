@@ -58,7 +58,7 @@ class CrystalDoc::Builder
       raise "Failed to copy docs to destination folder"
     end
 
-    return true
+    true
   rescue ex
     Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
@@ -72,7 +72,7 @@ class CrystalDoc::Builder
     File.write "./public#{repo_path}/#{version}/index.html",
       CrystalDoc::Views::BuildFailureTemplate.new(source_url)
 
-    return false
+    false
   ensure
     # ensure removal of temp folder
     `rm -rf "#{temp_folder}"`
@@ -219,16 +219,16 @@ class CrystalDoc::Builder
   private def post_process : Nil
     Log.info { "Post processing..." }
 
-    CrystalDoc::Html.post_process("#{temp_folder}/docs") do |html, file_path|
+    CrystalDoc::Html.post_process("#{temp_folder}/docs") do |html, _|
       sidebar = html.css(".sidebar").first
       sidebar["style"] = "display: flex; flex-direction: column; padding-top: 8px"
 
       html.head!.inner_html += <<-HTML
-        <script data-goatcounter="https://crystaldoc-info.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+        <script class="crystaldoc-post-process" data-goatcounter="https://crystaldoc-info.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
       HTML
 
       sidebar.inner_html += <<-HTML
-        <div style="margin-top: auto; padding: 27px 15px 9px 30px;">
+        <div class="crystaldoc-post-process" style="margin-top: auto; padding: 27px 0 0 30px;">
           <small>
             Built with Crystal #{Crystal::VERSION}<br>#{Time.utc}
           </small>
@@ -239,15 +239,14 @@ class CrystalDoc::Builder
       sidebar_search_box = sidebar_header.css(".search-box").first
       sidebar_project_summary = sidebar_header.css(".project-summary").first
 
-      # Repos not on github aren't on shards.info
-      shards_info_link = service == "github" ? <<-HTML : ""
+      shards_info_link = <<-HTML
         <a style="margin: 0 10px 0 0" href='https://shards.info/github/#{username}/#{project_name}'>
           Shards.info
         </a>
       HTML
 
       sidebar_header.inner_html = <<-HTML + sidebar_search_box.to_html + sidebar_project_summary.to_html
-        <div class="crystaldoc-info-header" style="padding: 9px 15px 9px 30px">
+        <div class="crystaldoc-info-header crystaldoc-post-process" style="padding: 9px 15px 9px 30px">
           <h1 class="project-name" style="margin: 8px 0 8px 0; color: #F8F4FD">
             <a href="/">CrystalDoc.info</a>
           </h1>

@@ -22,7 +22,7 @@
   pointing to the repository URL.
 </p>
 
-<form method="post" hx-post="/new_repository" hx-target="#new-repository-results">
+<form method="post" hx-post="/new_repository" hx-target="#new-repository-results" hx-trigger="submit" hx-indicator="#new-repository-indicator">
   <div>
     <input type="url" name="url" class="search-box"
       placeholder="https://github.com/username/project" pattern="https://.*"
@@ -30,7 +30,8 @@
       required>
   </div>
   <p>
-    <div id="new-repository-results"></div>
+    <span id="new-repository-results"></span>
+    <span id="new-repository-indicator" class="htmx-indicator">Loading...</span>
   </p>
 </form>
 

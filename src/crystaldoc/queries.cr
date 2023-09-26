@@ -59,7 +59,7 @@ module CrystalDoc::Queries
     last_version_id = nil
     new_version_ids = [] of Int32
     current_version_tags = current_repo_versions(db, repo_id)
-    CrystalDoc::VCS.versions(source_url) do |hash, tag|
+    CrystalDoc::VCS.versions(source_url) do |_, tag|
       next if tag.nil? || /[^\w\.\-_]/.match(tag)
       next if current_version_tags.includes? tag
 
@@ -139,7 +139,7 @@ module CrystalDoc::Queries
       output << {
         "name"     => version.commit_id.to_s,
         "url"      => "/#{service}/#{username}/#{project_name}/#{version.commit_id}/",
-        "released" => !version.nightly,
+        "released" => !version.nightly?,
       }
     end
 
@@ -147,7 +147,7 @@ module CrystalDoc::Queries
       return {"versions" => [] of String}.to_json
     end
 
-    {"versions" => output.select { |v| !v["released"] } + output.select { |v| v["released"] }.reverse}.to_json
+    {"versions" => output.select { |v| !v["released"] } + output.select { |v| v["released"] }.reverse!}.to_json
   end
 
   def self.find_repo(db : Queriable, user : String, proj : String, distinct : Bool = false) : Array(Repo)
@@ -156,7 +156,7 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true AND (position($1 in username) > 0 #{distinct ? "AND" : "OR"} position($2 in project_name) > 0)
+      WHERE repo_version.valid = true AND (position(LOWER($1) in LOWER(username)) > 0 #{distinct ? "AND" : "OR"} position(LOWER($2) in LOWER(project_name)) > 0)
       LIMIT 10;
     SQL
   end
@@ -216,6 +216,18 @@ module CrystalDoc::Queries
         SELECT 1
         FROM crystal_doc.repo
         WHERE service = $1 AND username = $2 AND project_name = $3
+      )
+    SQL
+  end
+
+  def self.repo_exists_and_valid(db : Queriable, service : String, username : String, project_name : String) : Bool
+    db.query_one(<<-SQL, service, username, project_name, as: Bool)
+      SELECT EXISTS (
+        SELECT 1
+        FROM crystal_doc.repo
+        INNER JOIN crystal_doc.repo_version
+          ON repo_version.repo_id = repo.id
+        WHERE service = $1 AND username = $2 AND project_name = $3 AND repo_version.valid = true
       )
     SQL
   end

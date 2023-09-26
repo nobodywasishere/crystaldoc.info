@@ -172,6 +172,14 @@ a.no-decoration:hover {
   cursor: pointer;
 }
 
+.htmx-indicator {
+  display: none;
+}
+
+#new-repository-indicator.htmx-request {
+  display: inline;
+}
+
 @media only screen and (max-width: 745px) {
   .main-content {
     max-width: 100%;

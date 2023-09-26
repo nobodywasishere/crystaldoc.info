@@ -21,6 +21,6 @@ module CrystalDoc
     include ::DB::Serializable::NonStrict
 
     getter commit_id : String
-    getter nightly : Bool
+    getter? nightly : Bool
   end
 end
