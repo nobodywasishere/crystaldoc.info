@@ -1,6 +1,6 @@
 require "option_parser"
-require "./crystaldoc"
-require "./crystaldoc/server"
+require "../crystaldoc"
+require "./server"
 
 REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
