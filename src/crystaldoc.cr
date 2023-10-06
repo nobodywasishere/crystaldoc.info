@@ -4,9 +4,9 @@ require "pg"
 
 module CrystalDoc
   VERSION = "0.1.0"
-end
 
-alias Queriable = DB::Connection | DB::Database
+  alias Queriable = DB::Connection | DB::Database
+end
 
 require "./crystaldoc/vcs"
 require "./crystaldoc/html"

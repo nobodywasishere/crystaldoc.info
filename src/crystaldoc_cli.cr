@@ -5,7 +5,6 @@ REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
 cmd = ""
 source = ""
-repo = ["", "", ""]
 version = ""
 
 OptionParser.parse do |parser|
@@ -15,7 +14,6 @@ OptionParser.parse do |parser|
 
   parser.on "regenerate", "Regenerate repo doc version" do
     cmd = "regenerate"
-    parser.on("--repo=REPO", "Repo triad") { |s| repo = s.split("/") }
     parser.on("--version=VERSION", "Repo git tag") { |w| version = w }
     parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
   end
@@ -37,8 +35,31 @@ when "regenerate-all"
     CrystalDoc::Queries.insert_doc_job(REPO_DB, version, 0)
   end
 when "regenerate"
-  builder = CrystalDoc::Builder.new(source, repo[0], repo[1], repo[2], version)
-  builder.build
+  REPO_DB.transaction do |tx|
+    conn = tx.connection
+
+    repo = CrystalDoc::Queries.repo_from_source(conn, source).first
+
+    unless CrystalDoc::Queries.repo_version_exists(conn, repo.service, repo.username, repo.project_name, version)
+      puts "Version #{version} for repo #{repo.path} doesn't exist"
+      exit 1
+    end
+
+    builder = CrystalDoc::Builder.new(REPO_DB)
+    res = builder.build_git(repo, version)
+
+    if res
+      CrystalDoc::Queries.mark_version_valid(
+        conn, version, repo.service, repo.username, repo.project_name
+      )
+
+      CrystalDoc::DocJob.remove(conn, source, version)
+    else
+      CrystalDoc::Queries.mark_version_invalid(
+        conn, version, repo.service, repo.username, repo.project_name
+      )
+    end
+  end
 else
   puts "Unknown cmd #{cmd.inspect}"
   exit 1

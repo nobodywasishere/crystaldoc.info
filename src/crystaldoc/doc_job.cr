@@ -82,4 +82,15 @@ class CrystalDoc::DocJob
       WHERE relname = 'doc_job';
     SQL
   end
+
+  def self.remove(db : Queriable, source_url : String, commit_id : String)
+    db.exec(<<-SQL, source_url, commit_id)
+      DELETE FROM crystal_doc.doc_job
+      USING crystal_doc.repo_version, crystal_doc.repo
+      WHERE doc_job.version_id = repo_version.id
+      AND repo_version.repo_id = repo.id
+      AND repo.source_url = $1
+      AND repo_version.commit_id = $2;
+    SQL
+  end
 end

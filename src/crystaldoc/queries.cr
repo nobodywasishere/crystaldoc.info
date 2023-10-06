@@ -125,7 +125,7 @@ module CrystalDoc::Queries
 
   def self.versions_json(db : Queriable, service : String, username : String, project_name : String) : String
     versions = db.query_all(<<-SQL, service, username, project_name, as: {RepoVersion})
-      SELECT repo_version.commit_id, repo_version.nightly
+      SELECT repo_version.commit_id, repo_version.nightly, repo_version.valid
       FROM crystal_doc.repo_version
       INNER JOIN crystal_doc.repo
         ON repo.id = repo_version.repo_id

@@ -3,90 +3,137 @@ require "html"
 class CrystalDoc::Builder
   Log = ::Log.for(self)
 
-  getter source_url : String
-  getter service : String
-  getter username : String
-  getter project_name : String
-  getter version : String
+  getter db : DB::Database
+  getter log = Log
 
-  def initialize(@source_url, @service, @username, @project_name, @version)
+  def initialize(@db : Queriable)
   end
 
-  def build : Bool
-    `rm -rf "#{temp_folder}"`
+  def search_for_jobs
+    loop do
+      Log.info { "Searching for a new job" }
+      db.transaction do |tx|
+        conn = tx.connection
 
-    unless git_clone_repo.success?
-      Log.error { "Failed to clone URL: #{source_url}" }
-      raise "Failed to clone URL: #{source_url}"
+        jobs = CrystalDoc::DocJob.take(conn)
+
+        if jobs.empty?
+          Log.info { "No jobs found." }
+          sleep(50)
+          break
+        else
+          job = jobs.first
+        end
+
+        Log.info { "Building docs for #{job.inspect}" }
+
+        repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
+
+        result = build_git(repo, job.commit_id)
+
+        if result
+          CrystalDoc::Queries.mark_version_valid(
+            conn, job.commit_id, repo.service, repo.username, repo.project_name
+          )
+        else
+          CrystalDoc::Queries.mark_version_invalid(
+            conn, job.commit_id, repo.service, repo.username, repo.project_name
+          )
+        end
+      rescue ex
+        Log.error { "Build Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+        tx.try &.rollback if ex.is_a? PG::Error
+
+        unless job.nil? || repo.nil?
+          CrystalDoc::Queries.mark_version_invalid(
+            REPO_DB, job.commit_id, repo.service, repo.username, repo.project_name
+          )
+        end
+      end
+
+      sleep(10)
+    end
+  end
+
+  def build_git(repo : Repo, version : String) : Bool
+    build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
+    repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
+    version_output_dir = repo_output_dir + "/#{version}"
+
+    execute("rm", ["-rf", build_dir], current_dir)
+
+    unless git_clone_repo(repo.source_url, build_dir).success?
+      Log.error { "Failed to clone URL: #{repo.source_url}" }
+      raise "Failed to clone URL: #{repo.source_url}"
     end
 
-    unless git_checkout.success?
+    unless git_checkout(version, build_dir).success?
       Log.error { "Failed to checkout version #{version}" }
       raise "Failed to checkout version #{version}"
     end
 
     Log.info { "Removing existing docs folder..." }
-    execute("rm", ["-rf", "#{temp_folder}/docs"])
+    execute("rm", ["-rf", "docs"], build_dir)
 
-    unless shards_install.success?
+    unless shards_install(build_dir).success?
       Log.error { "Failed to install shards" }
       raise "Failed to install shards"
     end
 
-    unless crystal_doc.success?
+    unless crystal_doc(repo.path, version, build_dir).success?
       Log.error { "Failed to build docs" }
       raise "Failed to build docs"
     end
 
-    post_process
+    post_process(build_dir, repo)
 
     # make destination folder if necessary
     Log.info { "Deleting destination folder..." }
-    execute("rm", ["-rf", "../public#{repo_path}/#{version}"])
+    execute("rm", ["-rf", version_output_dir], current_dir)
 
     # make destination folder if necessary
     Log.info { "Creating destination folder..." }
-    unless execute("mkdir", ["-p", "../public#{repo_path}"]).success?
+    unless execute("mkdir", ["-p", repo_output_dir], current_dir).success?
       Log.error { "Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
     # move ./docs folder to destination folder
     Log.info { "Copying docs to destination folder..." }
-    unless execute("mv", ["docs", "../public#{repo_path}/#{version}"]).success?
-      Log.error { "Failed to copy docs to destination folder" }
-      raise "Failed to copy docs to destination folder"
+    unless execute("mv", ["docs", version_output_dir], build_dir).success?
+      Log.error { "Failed to copy docs to destination folder #{version_output_dir}" }
+      raise "Failed to copy docs to destination folder #{version_output_dir}"
     end
 
     true
   rescue ex
     Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
-    # remove destination folder
-    `rm -rf "./public#{repo_path}/#{version}"`
+    unless version_output_dir.nil?
+      # remove destination folder
+      execute("rm", ["-rf", version_output_dir], current_dir)
 
-    # re-create destination folder
-    `mkdir -p "./public#{repo_path}/#{version}"`
+      # re-create destination folder
+      execute("mkdir", ["-p", version_output_dir], current_dir)
 
-    # render build failure template
-    File.write "./public#{repo_path}/#{version}/index.html",
-      CrystalDoc::Views::BuildFailureTemplate.new(source_url)
+      # render build failure template
+      File.write "#{version_output_dir}/index.html",
+        CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
+    end
 
     false
   ensure
-    # ensure removal of temp folder
-    `rm -rf "#{temp_folder}"`
+    unless build_dir.nil?
+      # ensure removal of temp folder
+      execute("rm", ["-rf", build_dir], current_dir)
+    end
   end
 
-  private def repo_path : String
-    "/#{service}/#{username}/#{project_name}"
+  private def current_dir : String
+    Path["."].expand.to_s
   end
 
-  private def temp_folder : String
-    @temp_folder ||= Path["#{service}-#{username}-#{project_name}-#{version}"].expand.to_s
-  end
-
-  private def git_clone_repo : Process::Status
+  private def git_clone_repo(source_url : String, folder : String) : Process::Status
     Log.info { "Cloning repo..." }
 
     stdout = IO::Memory.new
@@ -94,7 +141,7 @@ class CrystalDoc::Builder
 
     result = Process.run(
       "git",
-      ["clone", source_url, temp_folder],
+      ["clone", source_url, folder],
       env: {"GIT_TERMINAL_PROMPT" => "0", "POSTGRES_DB" => ""},
       output: stdout, error: stderr
     )
@@ -105,7 +152,7 @@ class CrystalDoc::Builder
     result
   end
 
-  private def git_checkout : Process::Status
+  private def git_checkout(version : String, folder : String) : Process::Status
     Log.info { "Checking out version #{version}..." }
 
     stdout = IO::Memory.new
@@ -115,7 +162,7 @@ class CrystalDoc::Builder
       "git",
       ["checkout", "--force", version],
       env: {"GIT_TERMINAL_PROMPT" => "0", "POSTGRES_DB" => ""},
-      chdir: temp_folder,
+      chdir: folder,
       output: stdout, error: stderr
     )
 
@@ -125,10 +172,10 @@ class CrystalDoc::Builder
     result
   end
 
-  private def shards_install : Process::Status
+  private def shards_install(folder : String) : Process::Status
     Log.info { "Running shards install..." }
 
-    Dir.mkdir_p("#{temp_folder}/lib")
+    Dir.mkdir_p("#{folder}/lib")
 
     safe_execute(
       "shards",
@@ -137,17 +184,18 @@ class CrystalDoc::Builder
         "--skip-postinstall",
         "--skip-executables",
       ],
+      folder: folder,
       # Need to be able to create the shard.lock if it doesn't exist
-      rw_dirs: [temp_folder],
-      ro_dirs: [Path[temp_folder].parent.to_s],
+      rw_dirs: [folder],
+      ro_dirs: [Path[folder].parent.to_s],
       networking: true
     )
   end
 
-  private def crystal_doc : Process::Status
+  private def crystal_doc(repo_path : String, version : String, folder : String) : Process::Status
     Log.info { "Building docs..." }
 
-    Dir.mkdir("#{temp_folder}/docs")
+    Dir.mkdir("#{folder}/docs")
 
     safe_execute(
       "crystal",
@@ -157,13 +205,14 @@ class CrystalDoc::Builder
         "--source-refname=#{version}",
         "--project-version=#{version}",
       ],
-      rw_dirs: ["#{temp_folder}/docs"],
-      ro_dirs: [temp_folder],
+      folder: folder,
+      rw_dirs: ["#{folder}/docs"],
+      ro_dirs: [folder],
       networking: false
     )
   end
 
-  private def execute(cmd : String, args : Array(String)) : Process::Status
+  private def execute(cmd : String, args : Array(String), folder : String) : Process::Status
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
@@ -171,7 +220,7 @@ class CrystalDoc::Builder
 
     result = Process.run(
       cmd, args,
-      chdir: temp_folder,
+      chdir: folder,
       env: {"POSTGRES_DB" => ""},
       output: stdout, error: stderr
     )
@@ -182,7 +231,7 @@ class CrystalDoc::Builder
     result
   end
 
-  def safe_execute(cmd : String, args : Array(String),
+  def safe_execute(cmd : String, args : Array(String), folder : String,
                    rw_dirs : Array(String), ro_dirs : Array(String),
                    networking : Bool = false) : Process::Status
     fj_args = [
@@ -205,7 +254,7 @@ class CrystalDoc::Builder
     Log.info { "Safe executing: firejail #{fj_args.join(" ")}" }
 
     result = Process.run("firejail", fj_args,
-      chdir: temp_folder,
+      chdir: folder,
       env: {"POSTGRES_DB" => ""},
       output: stdout, error: stderr
     )
@@ -216,10 +265,10 @@ class CrystalDoc::Builder
     result
   end
 
-  private def post_process : Nil
+  private def post_process(folder : String, repo : Repo) : Nil
     Log.info { "Post processing..." }
 
-    CrystalDoc::Html.post_process("#{temp_folder}/docs") do |html, _|
+    CrystalDoc::Html.post_process("#{folder}/docs") do |html, _|
       sidebar = html.css(".sidebar").first
       sidebar["style"] = "display: flex; flex-direction: column; padding-top: 8px"
 
@@ -240,7 +289,7 @@ class CrystalDoc::Builder
       sidebar_project_summary = sidebar_header.css(".project-summary").first
 
       shards_info_link = <<-HTML
-        <a style="margin: 0 10px 0 0" href='https://shards.info/github/#{username}/#{project_name}'>
+        <a style="margin: 0 10px 0 0" href='https://shards.info#{repo.path}'>
           Shards.info
         </a>
       HTML
@@ -251,7 +300,7 @@ class CrystalDoc::Builder
             <a href="/">CrystalDoc.info</a>
           </h1>
           <div style="margin: 16px 0 0 0">
-            <a style="margin: 0 12px 0 0" href="#{source_url}">Source code</a>
+            <a style="margin: 0 12px 0 0" href="#{repo.source_url}">Source code</a>
             #{shards_info_link}
           </div>
         </div>

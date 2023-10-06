@@ -47,10 +47,10 @@ get "/:serv/:user/:proj/latest" do |env|
     env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
   )
 
-  unless latest_version.nil?
-    env.redirect "./#{latest_version}/index.html"
-  else
+  if latest_version.nil?
     env.response.status_code = 404
+  else
+    env.redirect "./#{latest_version}/index.html"
   end
 end
 

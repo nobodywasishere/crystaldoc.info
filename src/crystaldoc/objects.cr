@@ -22,5 +22,6 @@ module CrystalDoc
 
     getter commit_id : String
     getter? nightly : Bool
+    getter? valid : Bool
   end
 end
