@@ -1,8 +1,9 @@
 name: crystaldoc
-version: 0.1.0
+version: 0.2.0
 
 authors:
   - Margret Riegert <margret@eowyn.net>
+  - Gwen Dowling
 
 dependencies:
   kemal:
@@ -13,14 +14,8 @@ dependencies:
     github: kostya/lexbor
 
 targets:
-  crystaldoc_server:
-    main: src/crystaldoc_server.cr
-  crystaldoc_builder:
-    main: src/crystaldoc_builder.cr
-  crystaldoc_searcher:
-    main: src/crystaldoc_searcher.cr
-  crystaldoc_cli:
-    main: src/crystaldoc_cli.cr
+  crystaldoc:
+    main: src/crystaldoc/cli.cr
 
 crystal: ~> 1.8
 

@@ -1,12 +1,3 @@
-require "./crystaldoc"
-
-Dir.mkdir_p "./logs"
-log_file = File.new("./logs/searcher.log", "a+")
-
-Log.setup(:info, Log::IOBackend.new(log_file))
-
-REPO_DB = DB.open(ENV["POSTGRES_DB"])
-
 class CrystalDoc::CLI::Searcher
   Log = ::Log.for("searcher")
 
@@ -80,17 +71,3 @@ class CrystalDoc::CLI::Searcher
     end
   end
 end
-
-# Version checker
-(1..ENV["CRYSTAL_WORKERS"]?.try &.to_i || 4).each do |idx|
-  spawn do
-    searcher = CrystalDoc::CLI::Searcher.new(idx)
-
-    loop do
-      searcher.search(REPO_DB)
-      sleep(10)
-    end
-  end
-end
-
-sleep

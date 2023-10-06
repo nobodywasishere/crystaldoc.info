@@ -3,13 +3,12 @@ require "html"
 class CrystalDoc::Builder
   Log = ::Log.for(self)
 
-  getter db : DB::Database
   getter log = Log
 
-  def initialize(@db : Queriable)
+  def initialize
   end
 
-  def search_for_jobs
+  def search_for_jobs(db : Queriable)
     loop do
       Log.info { "Searching for a new job" }
       db.transaction do |tx|

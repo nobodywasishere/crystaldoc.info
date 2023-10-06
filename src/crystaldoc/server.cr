@@ -2,27 +2,12 @@ require "kemal"
 require "db"
 require "pg"
 
-require "./crystaldoc"
-
-# Logging setup
-
-Dir.mkdir_p "./logs"
-log_file = File.new("./logs/server.log", "a+")
-
-Log.setup(:info, Log::IOBackend.new(log_file))
-Kemal.config.logger = Kemal::LogHandler.new(log_file)
-
-# Kemal setup
-
 serve_static({"gzip" => true, "dir_listing" => false})
-Log.info { "Starting crystaldoc server" }
 
 # Export main CSS file
 
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
-
-REPO_DB = DB.open(ENV["POSTGRES_DB"])
 
 get "/" do
   render "src/views/main.ecr", "src/views/layout.ecr"
@@ -77,12 +62,12 @@ end
 post "/search" do |env|
   query = env.params.body["q"]
   if query.includes? "/"
-    user, proj = query.split("/")[0..1]
-    distinct = true
+    user, proj = query.split("/")[0..1] # ameba:disable Lint/UselessAssign
+    distinct = true                     # ameba:disable Lint/UselessAssign
   else
-    user = query
-    proj = query
-    distinct = false
+    user = query     # ameba:disable Lint/UselessAssign
+    proj = query     # ameba:disable Lint/UselessAssign
+    distinct = false # ameba:disable Lint/UselessAssign
   end
   render "src/views/search_results.ecr" unless query == ""
 end
@@ -92,7 +77,7 @@ get "/jobs_queue" do
 end
 
 post "/jobs_queue" do
-  limit = 20
+  limit = 20 # ameba:disable Lint/UselessAssign
   render "src/views/jobs_queue_body.ecr"
 end
 
@@ -110,11 +95,11 @@ rescue ex
 end
 
 error 404 do |env|
-  title = ""
-  msg = ""
+  title = "" # ameba:disable Lint/UselessAssign
+  msg = ""   # ameba:disable Lint/UselessAssign
 
   unless /(?:\/~?[a-zA-Z0-9\.\-_]+){4,}/.match(env.request.path)
-    title = "This page doesn't exist"
+    title = "This page doesn't exist" # ameba:disable Lint/UselessAssign
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
@@ -122,34 +107,32 @@ error 404 do |env|
 
   # Check if it's a valid repo / version
   unless CrystalDoc::Queries.repo_exists(REPO_DB, service, user, proj)
-    title = "Repo doesn't exist"
-    msg = "The repo '#{service}/#{user}/#{proj}' doesn't exist"
+    title = "Repo doesn't exist"                                # ameba:disable Lint/UselessAssign
+    msg = "The repo '#{service}/#{user}/#{proj}' doesn't exist" # ameba:disable Lint/UselessAssign
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
   if version == "latest"
-    title = "All repo versions failed to build docs"
-    msg = "All of the versions for repo '#{service}/#{user}/#{proj}' failed to build documentation"
+    title = "All repo versions failed to build docs"                                                # ameba:disable Lint/UselessAssign
+    msg = "All of the versions for repo '#{service}/#{user}/#{proj}' failed to build documentation" # ameba:disable Lint/UselessAssign
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
   unless CrystalDoc::Queries.repo_version_exists(REPO_DB, service, user, proj, version)
-    title = "Version doesn't exist"
-    msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' doesn't exist"
+    title = "Version doesn't exist"                                                      # ameba:disable Lint/UselessAssign
+    msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' doesn't exist" # ameba:disable Lint/UselessAssign
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
   # Check if doc generation is queued
   if CrystalDoc::DocJob.in_queue?(REPO_DB, service, user, proj, version)
-    title = "Version in build queue"
-    msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' is in the build queue"
+    title = "Version in build queue"                                                             # ameba:disable Lint/UselessAssign
+    msg = "The version '#{version}' for repo '#{service}/#{user}/#{proj}' is in the build queue" # ameba:disable Lint/UselessAssign
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
-  title = "Repo version failed to build"
+  title = "Repo version failed to build" # ameba:disable Lint/UselessAssign
 
   # Shouldn't end up here
   render "src/views/404.ecr", "src/views/layout.ecr"
 end
-
-Kemal.run
