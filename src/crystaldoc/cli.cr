@@ -83,6 +83,7 @@ when "server"
 
   Log.setup(:info, Log::IOBackend.new(log_file))
   Kemal.config.logger = Kemal::LogHandler.new(log_file)
+  Kemal.config.env = "production"
 
   Kemal.run
 when "builder"
