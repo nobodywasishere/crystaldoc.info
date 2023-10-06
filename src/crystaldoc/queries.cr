@@ -200,11 +200,11 @@ module CrystalDoc::Queries
 
   def self.repo_needs_updating(db : Queriable) : Array(Repo)
     db.query_all(<<-SQL, as: {Repo})
-      SELECT service, username, project_name, source_url, abs(current_date - repo_status.last_checked::date) as date_diff
+      SELECT service, username, project_name, source_url, (NOW() - repo_status.last_checked) as date_diff
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_status
         ON repo_status.repo_id = repo.id
-      WHERE abs(current_date - repo_status.last_checked::date) >= 1
+      WHERE (NOW() - repo_status.last_checked) >= interval '1 hours'
       FOR UPDATE SKIP LOCKED
       LIMIT 1;
     SQL
