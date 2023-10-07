@@ -1,8 +1,6 @@
-name: Crystal CI
+name: Crystal PR test
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 

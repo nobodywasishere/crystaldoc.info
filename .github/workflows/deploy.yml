@@ -1,0 +1,52 @@
+name: Crystal main test & deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  spec:
+    name: Execute Crystal spec
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: crystallang/crystal
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install apt dependencies
+      run: |
+        apt update -y
+        apt install -y g++ cmake wget libapparmor-dev
+    - uses: robinraju/release-downloader@v1.8
+      id: dl_fj
+      with:
+        repository: "netblue30/firejail"
+        latest: true
+        fileName: "*amd64.deb"
+    - name: Install firejail
+      run: apt install -y "${{ fromJson(steps.dl_fj.outputs.downloaded_files)[0] }}"
+    - name: Shards install
+      run: shards install
+    - name: Run tests
+      run: LOG_LEVEL=error crystal spec
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        port: ${{ secrets.PORT }}
+        script: |
+          cd /srv/crystaldoc.info/
+          git pull
+          shards build --release -Dpreview_mt
+          systemctl --user restart crystaldoc-server.service
+          systemctl --user restart crystaldoc-searcher.service
+          systemctl --user restart crystaldoc-builder.service
