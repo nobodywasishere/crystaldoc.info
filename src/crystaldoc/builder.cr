@@ -57,7 +57,7 @@ class CrystalDoc::Builder
   def build_git(repo : Repo, version : String) : Bool
     build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
     repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
-    version_output_dir = repo_output_dir + "/#{version}"
+    Log.info { "Repo output dir: #{repo_output_dir}" }
 
     execute("rm", ["-rf", build_dir], current_dir)
 
@@ -88,35 +88,35 @@ class CrystalDoc::Builder
 
     # make destination folder if necessary
     Log.info { "Deleting destination folder..." }
-    execute("rm", ["-rf", version_output_dir], current_dir)
+    execute("rm", ["-rf", repo_output_dir], current_dir)
 
     # make destination folder if necessary
     Log.info { "Creating destination folder..." }
-    unless execute("mkdir", ["-p", repo_output_dir], current_dir).success?
+    unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
       Log.error { "Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
     # move ./docs folder to destination folder
     Log.info { "Copying docs to destination folder..." }
-    unless execute("mv", ["docs", version_output_dir], build_dir).success?
-      Log.error { "Failed to copy docs to destination folder #{version_output_dir}" }
-      raise "Failed to copy docs to destination folder #{version_output_dir}"
+    unless execute("mv", ["docs", repo_output_dir], build_dir).success?
+      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      raise "Failed to copy docs to destination folder #{repo_output_dir}"
     end
 
     true
   rescue ex
     Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
-    unless version_output_dir.nil?
+    unless repo_output_dir.nil?
       # remove destination folder
-      execute("rm", ["-rf", version_output_dir], current_dir)
+      execute("rm", ["-rf", repo_output_dir], current_dir)
 
       # re-create destination folder
-      execute("mkdir", ["-p", version_output_dir], current_dir)
+      execute("mkdir", ["-p", repo_output_dir], current_dir)
 
       # render build failure template
-      File.write "#{version_output_dir}/index.html",
+      File.write "#{repo_output_dir}/index.html",
         CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
     end
 

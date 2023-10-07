@@ -204,7 +204,7 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_status
         ON repo_status.repo_id = repo.id
-      WHERE (NOW() - repo_status.last_checked) >= interval '1 hours'
+      WHERE (NOW() - repo_status.last_checked) >= interval '6 hours'
       FOR UPDATE SKIP LOCKED
       LIMIT 1;
     SQL

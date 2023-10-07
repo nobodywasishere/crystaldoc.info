@@ -88,7 +88,7 @@ when "server"
   Kemal.run
 when "builder"
   Dir.mkdir_p "./logs"
-  log_file = File.new("./logs/searcher.log", "a+")
+  log_file = File.new("./logs/builder.log", "a+")
 
   Log.setup(:info, Log::IOBackend.new(log_file))
 
