@@ -89,7 +89,7 @@ class CrystalDoc::Builder
       raise "Failed to build docs"
     end
 
-    post_process(build_dir, repo)
+    post_process(build_dir, repo, version)
 
     # make destination folder if necessary
     Log.info { "Deleting destination folder..." }
@@ -269,7 +269,7 @@ class CrystalDoc::Builder
     result
   end
 
-  private def post_process(folder : String, repo : Repo) : Nil
+  private def post_process(folder : String, repo : Repo, version : String) : Nil
     Log.info { "Post processing..." }
 
     CrystalDoc::Html.post_process("#{folder}/docs") do |html, _|
@@ -279,7 +279,7 @@ class CrystalDoc::Builder
       html.head!.inner_html += <<-HTML
         <script class="crystaldoc-post-process" data-goatcounter="https://crystaldoc-info.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
         <noscript class="crystaldoc-post-process">
-          <img src="https://crystaldoc-info.goatcounter.com/count?p=/test-noscript">
+          <img src="https://crystaldoc-info.goatcounter.com/count?p=#{repo.path}/#{version}">
         </noscript>
 
         <link class="crystaldoc-post-process" rel="apple-touch-icon" sizes="57x57" href="/assets/apple-icon-57x57.png">
