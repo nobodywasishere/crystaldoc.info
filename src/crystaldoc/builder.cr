@@ -79,6 +79,11 @@ class CrystalDoc::Builder
       raise "Failed to install shards"
     end
 
+    if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
+      Log.info { "Moving readme" }
+      execute("mv", ["readme.md", "README.md"], build_dir)
+    end
+
     unless crystal_doc(repo.path, version, build_dir).success?
       Log.error { "Failed to build docs" }
       raise "Failed to build docs"
