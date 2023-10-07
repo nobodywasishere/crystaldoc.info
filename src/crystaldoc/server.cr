@@ -107,8 +107,11 @@ error 404 do |env|
 
   # Check if it's a valid repo / version
   unless CrystalDoc::Queries.repo_exists(REPO_DB, service, user, proj)
-    title = "Repo doesn't exist"                                # ameba:disable Lint/UselessAssign
-    msg = "The repo '#{service}/#{user}/#{proj}' doesn't exist" # ameba:disable Lint/UselessAssign
+    title = "Repo doesn't exist" # ameba:disable Lint/UselessAssign
+    msg = <<-MSG
+    The repo '#{service}/#{user}/#{proj}' doesn't exist. You can add it by submitting the URL <a href='https://crystaldoc.info/#add-a-shard'>here</a>.
+    MSG
+
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
