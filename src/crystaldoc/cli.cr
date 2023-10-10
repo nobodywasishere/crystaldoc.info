@@ -10,6 +10,12 @@ version = ""
 workers = 4
 
 OptionParser.parse do |parser|
+  parser.on "build-crystal", "Build Crystal stdlib api docs" do
+    cmd = "build-crystal"
+    parser.on("--version=VERSION", "Repo git tag") { |w| version = w }
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+  end
+
   parser.on "regenerate-all", "Regenerate all repo docs as doc jobs" do
     cmd = "regenerate-all"
   end
@@ -50,6 +56,32 @@ when "regenerate-all"
   versions.each do |v|
     next if CrystalDoc::DocJob.in_queue?(REPO_DB, v)
     CrystalDoc::Queries.insert_doc_job(REPO_DB, v, 0)
+  end
+when "build-crystal"
+  REPO_DB.transaction do |tx|
+    conn = tx.connection
+
+    repo = CrystalDoc::Queries.repo_from_source(conn, source).first
+
+    unless CrystalDoc::Queries.repo_version_exists(conn, repo.service, repo.username, repo.project_name, version)
+      puts "Version #{version} for repo #{repo.path} doesn't exist"
+      exit 1
+    end
+
+    builder = CrystalDoc::Builder.new
+    res = builder.build_crystal(repo, version)
+
+    if res
+      CrystalDoc::Queries.mark_version_valid(
+        conn, version, repo.service, repo.username, repo.project_name
+      )
+
+      CrystalDoc::DocJob.remove(conn, source, version)
+    else
+      CrystalDoc::Queries.mark_version_invalid(
+        conn, version, repo.service, repo.username, repo.project_name
+      )
+    end
   end
 when "regenerate"
   REPO_DB.transaction do |tx|

@@ -133,6 +133,81 @@ class CrystalDoc::Builder
     end
   end
 
+  def build_crystal(repo : Repo, version : String) : Bool
+    build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
+    repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
+    Log.info { "Repo output dir: #{repo_output_dir}" }
+
+    execute("rm", ["-rf", build_dir], current_dir)
+
+    unless git_clone_repo(repo.source_url, build_dir).success?
+      Log.error { "Failed to clone URL: #{repo.source_url}" }
+      raise "Failed to clone URL: #{repo.source_url}"
+    end
+
+    unless git_checkout(version, build_dir).success?
+      Log.error { "Failed to checkout version #{version}" }
+      raise "Failed to checkout version #{version}"
+    end
+
+    Log.info { "Removing existing docs folder..." }
+    execute("rm", ["-rf", "docs"], build_dir)
+
+    if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
+      Log.info { "Moving readme" }
+      execute("mv", ["readme.md", "README.md"], build_dir)
+    end
+
+    ENV["DOCS_OPTIONS"] = "--json-config-url=#{repo.path}/versions.json"
+    unless execute("make", ["docs"], build_dir).success?
+      Log.error { "Failed to build docs" }
+      raise "Failed to build docs"
+    end
+
+    post_process(build_dir, repo, version)
+
+    # make destination folder if necessary
+    Log.info { "Deleting destination folder..." }
+    execute("rm", ["-rf", repo_output_dir], current_dir)
+
+    # make destination folder if necessary
+    Log.info { "Creating destination folder..." }
+    unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
+      Log.error { "Failed to create destination folder" }
+      raise "Failed to create destination folder"
+    end
+
+    # move ./docs folder to destination folder
+    Log.info { "Copying docs to destination folder..." }
+    unless execute("mv", ["docs", repo_output_dir], build_dir).success?
+      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      raise "Failed to copy docs to destination folder #{repo_output_dir}"
+    end
+
+    true
+  rescue ex
+    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+
+    unless repo_output_dir.nil?
+      # remove destination folder
+      execute("rm", ["-rf", repo_output_dir], current_dir)
+
+      # re-create destination folder
+      execute("mkdir", ["-p", repo_output_dir], current_dir)
+
+      # render build failure template
+      File.write "#{repo_output_dir}/index.html",
+        CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
+    end
+
+    false
+  ensure
+    unless build_dir.nil?
+      # ensure removal of temp folder
+      execute("rm", ["-rf", build_dir], current_dir)
+    end
+  end
+
   private def current_dir : String
     Path["."].expand.to_s
   end
