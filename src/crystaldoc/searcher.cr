@@ -62,6 +62,10 @@ class CrystalDoc::CLI::Searcher
       log.info { "Refreshing repo versions..." }
       CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
     rescue ex
+      if repo_id
+        CrystalDoc::Queries.upsert_repo_status(db, "FAILURE", repo_id)
+      end
+
       log.error { "Searcher Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
       tx.try &.rollback if ex.is_a? PG::Error
     end
