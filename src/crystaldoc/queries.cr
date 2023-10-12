@@ -152,7 +152,7 @@ module CrystalDoc::Queries
 
   def self.find_repo(db : Queriable, user : String, proj : String, distinct : Bool = false) : Array(Repo)
     db.query_all(<<-SQL, user, proj, as: {Repo})
-      SELECT DISTINCT service, username, project_name, source_url
+      SELECT DISTINCT service, username, project_name, source_url, build_type
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
