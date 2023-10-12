@@ -319,6 +319,7 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.featured_repo
         ON featured_repo.repo_id = repo.id
+      ORDER BY repo.id ASC
       LIMIT $1;
     SQL
   end
