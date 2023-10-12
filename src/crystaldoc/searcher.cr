@@ -25,11 +25,7 @@ class CrystalDoc::CLI::Searcher
       end
 
       log.info { "Getting repo_id..." }
-      repo_id = conn.query_one(<<-SQL, repo.service, repo.username, repo.project_name, as: Int32)
-        SELECT repo.id
-        FROM crystal_doc.repo
-        WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3
-      SQL
+      repo_id = CrystalDoc::Queries.get_repo_id(conn, repo.source_url)
 
       log.info { "Getting source_url..." }
       source_url = conn.query_one(<<-SQL, repo_id, as: String)

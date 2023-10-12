@@ -7,8 +7,9 @@ module CrystalDoc
     getter username : String
     getter project_name : String
     getter source_url : String
+    getter build_type : String
 
-    def initialize(@service, @username, @project_name, @source_url)
+    def initialize(@service, @username, @project_name, @source_url, @build_type = "git")
     end
 
     def path

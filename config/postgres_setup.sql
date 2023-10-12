@@ -10,6 +10,7 @@ CREATE TABLE repo (
     username text not null,
     project_name text not null,
     source_url text not null,
+    build_type text not null default 'git',
     unique (service, username, project_name)
 );
 
@@ -51,3 +52,10 @@ CREATE TABLE doc_job (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON doc_job TO crystal_doc_server;
+
+CREATE TABLE featured_repo (
+    id int not null primary key generated always as identity,
+    repo_id int unique references repo on delete cascade
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON featured_repo TO crystal_doc_server;

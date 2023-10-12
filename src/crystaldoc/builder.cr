@@ -28,7 +28,7 @@ class CrystalDoc::Builder
 
         repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
 
-        result = build_git(repo, job.commit_id)
+        result = build(repo, job.commit_id)
 
         if result
           CrystalDoc::Queries.mark_version_valid(
@@ -51,6 +51,17 @@ class CrystalDoc::Builder
       end
 
       sleep(10)
+    end
+  end
+
+  def build(repo : Repo, version : String) : Bool
+    case repo.build_type
+    when "git"
+      build_git(repo, version)
+    when "crystal"
+      build_crystal(repo, version)
+    else
+      raise "Unknown build type '#{repo.build_type}'"
     end
   end
 
@@ -158,7 +169,7 @@ class CrystalDoc::Builder
       execute("mv", ["readme.md", "README.md"], build_dir)
     end
 
-    ENV["DOCS_OPTIONS"] = "--json-config-url=#{repo.path}/versions.json"
+    ENV["DOCS_OPTIONS"] = "--json-config-url=#{repo.path}/versions.json --source-refname=#{version} --project-version=#{version}"
     unless execute("make", ["docs"], build_dir).success?
       Log.error { "Failed to build docs" }
       raise "Failed to build docs"
@@ -226,7 +237,7 @@ class CrystalDoc::Builder
     )
 
     Log.info { "git_clone_repo: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "git_clone_repo: " + stderr.to_s } unless stderr.to_s.empty?
+    Log.error { "git_clone_repo: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
@@ -246,7 +257,7 @@ class CrystalDoc::Builder
     )
 
     Log.info { "git_checkout: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "git_checkout: " + stderr.to_s } unless stderr.to_s.empty?
+    Log.error { "git_checkout: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
@@ -305,7 +316,7 @@ class CrystalDoc::Builder
     )
 
     Log.info { "execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty?
+    Log.error { "execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
@@ -339,7 +350,7 @@ class CrystalDoc::Builder
     )
 
     Log.info { "safe execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "safe execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty?
+    Log.error { "safe execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end

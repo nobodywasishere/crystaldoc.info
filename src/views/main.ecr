@@ -11,6 +11,10 @@
   <div id="search-results"></div>
 </form>
 
+<h2>Featured</h2>
+
+<%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.featured_repos(REPO_DB, 10)) %>
+
 <h2>Recently Updated</h2>
 
 <%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.recently_updated_repos(REPO_DB, 10)) %>

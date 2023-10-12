@@ -10,9 +10,13 @@ version = ""
 workers = 4
 
 OptionParser.parse do |parser|
-  parser.on "build-crystal", "Build Crystal stdlib api docs" do
-    cmd = "build-crystal"
-    parser.on("--version=VERSION", "Repo git tag") { |w| version = w }
+  parser.on "add-featured", "Add repo to featured" do
+    cmd = "add-featured"
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+  end
+
+  parser.on "remove-featured", "Remove repo from featured" do
+    cmd = "remove-featured"
     parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
   end
 
@@ -47,6 +51,20 @@ OptionParser.parse do |parser|
 end
 
 case cmd
+when "add-featured"
+  REPO_DB.transaction do |tx|
+    conn = tx.connection
+
+    repo_id = CrystalDoc::Queries.get_repo_id(conn, source)
+    CrystalDoc::Queries.add_featured_repo(conn, repo_id)
+  end
+when "remove-featured"
+  REPO_DB.transaction do |tx|
+    conn = tx.connection
+
+    repo_id = CrystalDoc::Queries.get_repo_id(conn, source)
+    CrystalDoc::Queries.remove_featured_repo(conn, repo_id)
+  end
 when "regenerate-all"
   versions = REPO_DB.query_all(<<-SQL, as: Int32)
     SELECT repo_version.id
@@ -56,32 +74,6 @@ when "regenerate-all"
   versions.each do |v|
     next if CrystalDoc::DocJob.in_queue?(REPO_DB, v)
     CrystalDoc::Queries.insert_doc_job(REPO_DB, v, 0)
-  end
-when "build-crystal"
-  REPO_DB.transaction do |tx|
-    conn = tx.connection
-
-    repo = CrystalDoc::Queries.repo_from_source(conn, source).first
-
-    unless CrystalDoc::Queries.repo_version_exists(conn, repo.service, repo.username, repo.project_name, version)
-      puts "Version #{version} for repo #{repo.path} doesn't exist"
-      exit 1
-    end
-
-    builder = CrystalDoc::Builder.new
-    res = builder.build_crystal(repo, version)
-
-    if res
-      CrystalDoc::Queries.mark_version_valid(
-        conn, version, repo.service, repo.username, repo.project_name
-      )
-
-      CrystalDoc::DocJob.remove(conn, source, version)
-    else
-      CrystalDoc::Queries.mark_version_invalid(
-        conn, version, repo.service, repo.username, repo.project_name
-      )
-    end
   end
 when "regenerate"
   REPO_DB.transaction do |tx|
@@ -95,7 +87,7 @@ when "regenerate"
     end
 
     builder = CrystalDoc::Builder.new
-    res = builder.build_git(repo, version)
+    res = builder.build(repo, version)
 
     if res
       CrystalDoc::Queries.mark_version_valid(
