@@ -60,6 +60,8 @@ class CrystalDoc::Builder
       build_git(repo, version)
     when "crystal"
       build_crystal(repo, version)
+    when "fossil"
+      build_fossil(repo, version)
     else
       raise "Unknown build type '#{repo.build_type}'"
     end
@@ -219,6 +221,94 @@ class CrystalDoc::Builder
     end
   end
 
+  def build_fossil(repo : Repo, version : String) : Bool
+    build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
+    fossil_file = build_dir + ".fossil"
+    repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
+    Log.info { "Repo output dir: #{repo_output_dir}" }
+
+    execute("rm", ["-rf", build_dir], current_dir)
+
+    execute("rm", ["-rf", fossil_file], current_dir)
+
+    Dir.mkdir_p(build_dir)
+
+    unless fossil_clone(repo.source_url, fossil_file).success?
+      Log.error { "Failed to clone repo" }
+      raise "Failed to clone repo"
+    end
+
+    unless fossil_open(version, fossil_file, build_dir).success?
+      Log.error { "Failed to open version" }
+      raise "Failed to open version"
+    end
+
+    Log.info { "Removing existing docs folder..." }
+    execute("rm", ["-rf", "docs"], build_dir)
+
+    unless shards_install(build_dir).success?
+      Log.error { "Failed to install shards" }
+      raise "Failed to install shards"
+    end
+
+    if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
+      Log.info { "Moving readme" }
+      execute("mv", ["readme.md", "README.md"], build_dir)
+    end
+
+    unless crystal_doc(repo.path, version, build_dir).success?
+      Log.error { "Failed to build docs" }
+      raise "Failed to build docs"
+    end
+
+    post_process(build_dir, repo, version)
+
+    # make destination folder if necessary
+    Log.info { "Deleting destination folder..." }
+    execute("rm", ["-rf", repo_output_dir], current_dir)
+
+    # make destination folder if necessary
+    Log.info { "Creating destination folder..." }
+    unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
+      Log.error { "Failed to create destination folder" }
+      raise "Failed to create destination folder"
+    end
+
+    # move ./docs folder to destination folder
+    Log.info { "Copying docs to destination folder..." }
+    unless execute("mv", ["docs", repo_output_dir], build_dir).success?
+      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      raise "Failed to copy docs to destination folder #{repo_output_dir}"
+    end
+
+    true
+  rescue ex
+    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+
+    unless repo_output_dir.nil?
+      # remove destination folder
+      execute("rm", ["-rf", repo_output_dir], current_dir)
+
+      # re-create destination folder
+      execute("mkdir", ["-p", repo_output_dir], current_dir)
+
+      # render build failure template
+      File.write "#{repo_output_dir}/index.html",
+        CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
+    end
+
+    false
+  ensure
+    unless build_dir.nil?
+      # ensure removal of temp folder
+      execute("rm", ["-rf", build_dir], current_dir)
+    end
+
+    unless fossil_file.nil?
+      execute("rm", ["-rf", fossil_file], current_dir)
+    end
+  end
+
   private def current_dir : String
     Path["."].expand.to_s
   end
@@ -258,6 +348,54 @@ class CrystalDoc::Builder
 
     Log.info { "git_checkout: " + stdout.to_s } unless stdout.to_s.empty?
     Log.error { "git_checkout: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+
+    result
+  end
+
+  private def fossil_clone(source_url : String, filename : String) : Process::Status
+    Log.info { "Cloning out fossil repo #{source_url}..." }
+
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    result = Process.run(
+      "fossil",
+      [
+        "clone",
+        source_url,
+        "--no-open",
+        filename,
+      ],
+      env: {"POSTGRES_DB" => ""},
+      output: stdout, error: stderr
+    )
+
+    Log.info { "fossil_clone: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "fossil_clone: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+
+    result
+  end
+
+  private def fossil_open(version : String, fossil_file : String, folder : String) : Process::Status
+    Log.info { "Open fossil version #{version}..." }
+
+    stdout = IO::Memory.new
+    stderr = IO::Memory.new
+
+    result = Process.run(
+      "fossil",
+      [
+        "open",
+        fossil_file,
+        version,
+      ],
+      env: {"POSTGRES_DB" => ""},
+      chdir: folder,
+      output: stdout, error: stderr
+    )
+
+    Log.info { "fossil_open: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "fossil_open: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end

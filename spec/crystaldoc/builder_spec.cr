@@ -32,4 +32,12 @@ describe CrystalDoc::Builder do
       builder.build_git(repo, "0.1.0").should eq(false)
     end
   end
+
+  it "builds fossil docs" do
+    builder = CrystalDoc::Builder.new
+
+    repo = CrystalDoc::Repo.new("chiselapp", "MistressRemilia", "libremiliacr", "https://chiselapp.com/user/MistressRemilia/repository/libremiliacr/index")
+
+    builder.build_fossil(repo, "v0.11.2").should eq(true)
+  end
 end

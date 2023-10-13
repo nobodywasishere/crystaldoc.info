@@ -8,3 +8,4 @@
 !/public/assets
 !/public/assets/*
 !/public/favicon.ico
+*.fossil
