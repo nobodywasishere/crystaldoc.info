@@ -18,7 +18,7 @@ jobs:
     - name: Install apt dependencies
       run: |
         apt update -y
-        apt install -y g++ cmake wget libapparmor-dev
+        apt install -y g++ cmake wget libapparmor-dev fossil
     - uses: robinraju/release-downloader@v1.8
       id: dl_fj
       with:
