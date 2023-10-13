@@ -34,6 +34,8 @@ describe CrystalDoc::Builder do
   end
 
   it "builds fossil docs" do
+    ENV["USER"] = "cicd"
+
     builder = CrystalDoc::Builder.new
 
     repo = CrystalDoc::Repo.new("chiselapp", "MistressRemilia", "libremiliacr", "https://chiselapp.com/user/MistressRemilia/repository/libremiliacr/index")
