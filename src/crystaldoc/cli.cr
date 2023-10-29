@@ -30,6 +30,11 @@ OptionParser.parse do |parser|
     parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
   end
 
+  parser.on "update-repo-versions", "Use the searcher to search for new repo versions" do
+    cmd = "update-repo-versions"
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+  end
+
   parser.on "server", "Kemal server" do
     cmd = "server"
   end
@@ -75,6 +80,15 @@ when "regenerate-all"
     next if CrystalDoc::DocJob.in_queue?(REPO_DB, v)
     CrystalDoc::Queries.insert_doc_job(REPO_DB, v, 0)
   end
+when "update-repo-versions"
+  REPO_DB.transaction do |tx|
+    conn = tx.connection
+
+    repo = CrystalDoc::Queries.repo_from_source(conn, source).first
+
+    searcher = CrystalDoc::CLI::Searcher.new(0)
+    searcher.update_repo(conn, repo)
+  end
 when "regenerate"
   REPO_DB.transaction do |tx|
     conn = tx.connection
@@ -86,7 +100,7 @@ when "regenerate"
       exit 1
     end
 
-    builder = CrystalDoc::Builder.new
+    builder = CrystalDoc::Builder.new(0)
     res = builder.build(repo, version)
 
     if res
@@ -116,9 +130,9 @@ when "builder"
 
   Log.setup(:info, Log::IOBackend.new(log_file))
 
-  (1..workers).each do
+  (1..workers).each do |idx|
     spawn do
-      builder = CrystalDoc::Builder.new
+      builder = CrystalDoc::Builder.new(idx)
       builder.search_for_jobs(REPO_DB)
     end
   end
@@ -133,11 +147,7 @@ when "searcher"
   (1..workers).each do |idx|
     spawn do
       searcher = CrystalDoc::CLI::Searcher.new(idx)
-
-      loop do
-        searcher.search(REPO_DB)
-        sleep(10)
-      end
+      searcher.search_for_jobs(REPO_DB)
     end
   end
 

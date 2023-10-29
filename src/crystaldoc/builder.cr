@@ -4,27 +4,28 @@ class CrystalDoc::Builder
   Log = ::Log.for(self)
 
   getter log = Log
+  getter idx : Int32
 
-  def initialize
+  def initialize(@idx)
   end
 
   def search_for_jobs(db : Queriable)
     loop do
-      Log.info { "Searching for a new job" }
+      Log.info { "#{idx}: Searching for a new job" }
       db.transaction do |tx|
         conn = tx.connection
 
         jobs = CrystalDoc::DocJob.take(conn)
 
         if jobs.empty?
-          Log.info { "No jobs found." }
+          Log.info { "#{idx}: No jobs found." }
           sleep(50)
           break
         else
           job = jobs.first
         end
 
-        Log.info { "Building docs for #{job.inspect}" }
+        Log.info { "#{idx}: Building docs for #{job.inspect}" }
 
         repo = CrystalDoc::Queries.repo_from_source(conn, job.source_url).first
 
@@ -40,7 +41,7 @@ class CrystalDoc::Builder
           )
         end
       rescue ex
-        Log.error { "Build Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+        Log.error { "#{idx}: Build Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
         tx.try &.rollback if ex.is_a? PG::Error
 
         unless job.nil? || repo.nil?
@@ -70,61 +71,61 @@ class CrystalDoc::Builder
   def build_git(repo : Repo, version : String) : Bool
     build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
     repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
-    Log.info { "Repo output dir: #{repo_output_dir}" }
+    Log.info { "#{idx}: Repo output dir: #{repo_output_dir}" }
 
     execute("rm", ["-rf", build_dir], current_dir)
 
     unless git_clone_repo(repo.source_url, build_dir).success?
-      Log.error { "Failed to clone URL: #{repo.source_url}" }
+      Log.error { "#{idx}: Failed to clone URL: #{repo.source_url}" }
       raise "Failed to clone URL: #{repo.source_url}"
     end
 
     unless git_checkout(version, build_dir).success?
-      Log.error { "Failed to checkout version #{version}" }
+      Log.error { "#{idx}: Failed to checkout version #{version}" }
       raise "Failed to checkout version #{version}"
     end
 
-    Log.info { "Removing existing docs folder..." }
+    Log.info { "#{idx}: Removing existing docs folder..." }
     execute("rm", ["-rf", "docs"], build_dir)
 
     unless shards_install(build_dir).success?
-      Log.error { "Failed to install shards" }
+      Log.error { "#{idx}: Failed to install shards" }
       raise "Failed to install shards"
     end
 
     if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
-      Log.info { "Moving readme" }
+      Log.info { "#{idx}: Moving readme" }
       execute("mv", ["readme.md", "README.md"], build_dir)
     end
 
     unless crystal_doc(repo.path, version, build_dir).success?
-      Log.error { "Failed to build docs" }
+      Log.error { "#{idx}: Failed to build docs" }
       raise "Failed to build docs"
     end
 
     post_process(build_dir, repo, version)
 
     # make destination folder if necessary
-    Log.info { "Deleting destination folder..." }
+    Log.info { "#{idx}: Deleting destination folder..." }
     execute("rm", ["-rf", repo_output_dir], current_dir)
 
     # make destination folder if necessary
-    Log.info { "Creating destination folder..." }
+    Log.info { "#{idx}: Creating destination folder..." }
     unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
-      Log.error { "Failed to create destination folder" }
+      Log.error { "#{idx}: Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
     # move ./docs folder to destination folder
-    Log.info { "Copying docs to destination folder..." }
+    Log.info { "#{idx}: Copying docs to destination folder..." }
     unless execute("mv", ["docs", repo_output_dir], build_dir).success?
-      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      Log.error { "#{idx}: Failed to copy docs to destination folder #{repo_output_dir}" }
       raise "Failed to copy docs to destination folder #{repo_output_dir}"
     end
 
     true
   rescue ex
-    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+    Log.error { "#{idx}: Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
     unless repo_output_dir.nil?
       # remove destination folder
@@ -149,57 +150,57 @@ class CrystalDoc::Builder
   def build_crystal(repo : Repo, version : String) : Bool
     build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
     repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
-    Log.info { "Repo output dir: #{repo_output_dir}" }
+    Log.info { "#{idx}: Repo output dir: #{repo_output_dir}" }
 
     execute("rm", ["-rf", build_dir], current_dir)
 
     unless git_clone_repo(repo.source_url, build_dir).success?
-      Log.error { "Failed to clone URL: #{repo.source_url}" }
+      Log.error { "#{idx}: Failed to clone URL: #{repo.source_url}" }
       raise "Failed to clone URL: #{repo.source_url}"
     end
 
     unless git_checkout(version, build_dir).success?
-      Log.error { "Failed to checkout version #{version}" }
+      Log.error { "#{idx}: Failed to checkout version #{version}" }
       raise "Failed to checkout version #{version}"
     end
 
-    Log.info { "Removing existing docs folder..." }
+    Log.info { "#{idx}: Removing existing docs folder..." }
     execute("rm", ["-rf", "docs"], build_dir)
 
     if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
-      Log.info { "Moving readme" }
+      Log.info { "#{idx}: Moving readme" }
       execute("mv", ["readme.md", "README.md"], build_dir)
     end
 
     ENV["DOCS_OPTIONS"] = "--json-config-url=#{repo.path}/versions.json --source-refname=#{version} --project-version=#{version}"
     unless execute("make", ["docs"], build_dir).success?
-      Log.error { "Failed to build docs" }
+      Log.error { "#{idx}: Failed to build docs" }
       raise "Failed to build docs"
     end
 
     post_process(build_dir, repo, version)
 
     # make destination folder if necessary
-    Log.info { "Deleting destination folder..." }
+    Log.info { "#{idx}: Deleting destination folder..." }
     execute("rm", ["-rf", repo_output_dir], current_dir)
 
     # make destination folder if necessary
-    Log.info { "Creating destination folder..." }
+    Log.info { "#{idx}: Creating destination folder..." }
     unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
-      Log.error { "Failed to create destination folder" }
+      Log.error { "#{idx}: Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
     # move ./docs folder to destination folder
-    Log.info { "Copying docs to destination folder..." }
+    Log.info { "#{idx}: Copying docs to destination folder..." }
     unless execute("mv", ["docs", repo_output_dir], build_dir).success?
-      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      Log.error { "#{idx}: Failed to copy docs to destination folder #{repo_output_dir}" }
       raise "Failed to copy docs to destination folder #{repo_output_dir}"
     end
 
     true
   rescue ex
-    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+    Log.error { "#{idx}: Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
     unless repo_output_dir.nil?
       # remove destination folder
@@ -225,7 +226,7 @@ class CrystalDoc::Builder
     build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
     fossil_file = build_dir + ".fossil"
     repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
-    Log.info { "Repo output dir: #{repo_output_dir}" }
+    Log.info { "#{idx}: Repo output dir: #{repo_output_dir}" }
 
     execute("rm", ["-rf", build_dir], current_dir)
 
@@ -234,56 +235,56 @@ class CrystalDoc::Builder
     Dir.mkdir_p(build_dir)
 
     unless fossil_clone(repo.source_url, fossil_file).success?
-      Log.error { "Failed to clone repo" }
+      Log.error { "#{idx}: Failed to clone repo" }
       raise "Failed to clone repo"
     end
 
     unless fossil_open(version, fossil_file, build_dir).success?
-      Log.error { "Failed to open version" }
+      Log.error { "#{idx}: Failed to open version" }
       raise "Failed to open version"
     end
 
-    Log.info { "Removing existing docs folder..." }
+    Log.info { "#{idx}: Removing existing docs folder..." }
     execute("rm", ["-rf", "docs"], build_dir)
 
     unless shards_install(build_dir).success?
-      Log.error { "Failed to install shards" }
+      Log.error { "#{idx}: Failed to install shards" }
       raise "Failed to install shards"
     end
 
     if execute("test", ["-f", "readme.md"], build_dir).success? && !execute("test", ["-f", "README.md"], build_dir).success?
-      Log.info { "Moving readme" }
+      Log.info { "#{idx}: Moving readme" }
       execute("mv", ["readme.md", "README.md"], build_dir)
     end
 
     unless crystal_doc(repo.path, version, build_dir).success?
-      Log.error { "Failed to build docs" }
+      Log.error { "#{idx}: Failed to build docs" }
       raise "Failed to build docs"
     end
 
     post_process(build_dir, repo, version)
 
     # make destination folder if necessary
-    Log.info { "Deleting destination folder..." }
+    Log.info { "#{idx}: Deleting destination folder..." }
     execute("rm", ["-rf", repo_output_dir], current_dir)
 
     # make destination folder if necessary
-    Log.info { "Creating destination folder..." }
+    Log.info { "#{idx}: Creating destination folder..." }
     unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
-      Log.error { "Failed to create destination folder" }
+      Log.error { "#{idx}: Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
     # move ./docs folder to destination folder
-    Log.info { "Copying docs to destination folder..." }
+    Log.info { "#{idx}: Copying docs to destination folder..." }
     unless execute("mv", ["docs", repo_output_dir], build_dir).success?
-      Log.error { "Failed to copy docs to destination folder #{repo_output_dir}" }
+      Log.error { "#{idx}: Failed to copy docs to destination folder #{repo_output_dir}" }
       raise "Failed to copy docs to destination folder #{repo_output_dir}"
     end
 
     true
   rescue ex
-    Log.error { "Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+    Log.error { "#{idx}: Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
 
     unless repo_output_dir.nil?
       # remove destination folder
@@ -314,7 +315,7 @@ class CrystalDoc::Builder
   end
 
   private def git_clone_repo(source_url : String, folder : String) : Process::Status
-    Log.info { "Cloning repo..." }
+    Log.info { "#{idx}: Cloning repo..." }
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new
@@ -326,14 +327,14 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "git_clone_repo: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "git_clone_repo: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: git_clone_repo: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: git_clone_repo: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
 
   private def git_checkout(version : String, folder : String) : Process::Status
-    Log.info { "Checking out version #{version}..." }
+    Log.info { "#{idx}: Checking out version #{version}..." }
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new
@@ -346,14 +347,14 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "git_checkout: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "git_checkout: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: git_checkout: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: git_checkout: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
 
   private def fossil_clone(source_url : String, filename : String) : Process::Status
-    Log.info { "Cloning out fossil repo #{source_url}..." }
+    Log.info { "#{idx}: Cloning out fossil repo #{source_url}..." }
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new
@@ -370,14 +371,14 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "fossil_clone: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "fossil_clone: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: fossil_clone: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: fossil_clone: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
 
   private def fossil_open(version : String, fossil_file : String, folder : String) : Process::Status
-    Log.info { "Open fossil version #{version}..." }
+    Log.info { "#{idx}: Open fossil version #{version}..." }
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new
@@ -394,14 +395,14 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "fossil_open: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "fossil_open: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: fossil_open: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: fossil_open: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
 
   private def shards_install(folder : String) : Process::Status
-    Log.info { "Running shards install..." }
+    Log.info { "#{idx}: Running shards install..." }
 
     Dir.mkdir_p("#{folder}/lib")
 
@@ -421,7 +422,7 @@ class CrystalDoc::Builder
   end
 
   private def crystal_doc(repo_path : String, version : String, folder : String) : Process::Status
-    Log.info { "Building docs..." }
+    Log.info { "#{idx}: Building docs..." }
 
     Dir.mkdir("#{folder}/docs")
 
@@ -444,7 +445,7 @@ class CrystalDoc::Builder
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
-    Log.info { "Executing: #{cmd} #{args.join(" ")}" }
+    Log.info { "#{idx}: Executing: #{cmd} #{args.join(" ")}" }
 
     result = Process.run(
       cmd, args,
@@ -453,8 +454,8 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
@@ -479,7 +480,7 @@ class CrystalDoc::Builder
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
-    Log.info { "Safe executing: firejail #{fj_args.join(" ")}" }
+    Log.info { "#{idx}: Safe executing: firejail #{fj_args.join(" ")}" }
 
     result = Process.run("firejail", fj_args,
       chdir: folder,
@@ -487,14 +488,14 @@ class CrystalDoc::Builder
       output: stdout, error: stderr
     )
 
-    Log.info { "safe execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
-    Log.error { "safe execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
+    Log.info { "#{idx}: safe execute #{cmd}: " + stdout.to_s } unless stdout.to_s.empty?
+    Log.error { "#{idx}: safe execute #{cmd}: " + stderr.to_s } unless stderr.to_s.empty? || result.success?
 
     result
   end
 
   private def post_process(folder : String, repo : Repo, version : String) : Nil
-    Log.info { "Post processing..." }
+    Log.info { "#{idx}: Post processing..." }
 
     CrystalDoc::Html.post_process("#{folder}/docs") do |html, _|
       sidebar = html.css(".sidebar").first

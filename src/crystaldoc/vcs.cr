@@ -1,3 +1,5 @@
+require "http/status"
+
 class CrystalDoc::VCS
   Log = ::Log.for(self)
 
@@ -44,11 +46,19 @@ class CrystalDoc::VCS
   end
 
   private def valid_url? : Bool
-    Process.run(
-      "git",
-      ["ls-remote", source_url],
-      env: {"GIT_TERMINAL_PROMPT" => "0"}
-    ).success?
+    Log.info { "Verifying URL status code successful" }
+
+    stdout = IO::Memory.new
+    response = Process.run("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}", source_url], output: stdout)
+
+    Log.info { "Source URL '#{source_url}' HTTP code: #{stdout.to_s}" }
+    return false unless HTTP::Status.new(stdout.to_s.to_i).success? || HTTP::Status.new(stdout.to_s.to_i).redirection?
+
+    Log.info { "Verifying git url successful" }
+
+    return false unless Process.run("git", ["ls-remote", source_url], env: {"GIT_TERMINAL_PROMPT" => "0"}).success?
+
+    true
   end
 
   private def parse_url : Hash(String, String)
@@ -72,6 +82,8 @@ class CrystalDoc::VCS
   end
 
   def main_branch : String?
+    raise "Invalid URL" unless valid_url?
+
     stdout = IO::Memory.new
     unless Process.run(
              "git",
@@ -90,6 +102,8 @@ class CrystalDoc::VCS
   end
 
   def main_commit_hash : String?
+    raise "Invalid URL" unless valid_url?
+
     stdout = IO::Memory.new
     unless Process.run(
              "git",
@@ -113,7 +127,10 @@ class CrystalDoc::VCS
   end
 
   def self.versions(source_url, &)
+    self.new(source_url) # Check if URL valid
+
     stdout = IO::Memory.new
+    stderr = IO::Memory.new
     unless Process.run(
              "git",
              [
@@ -125,9 +142,10 @@ class CrystalDoc::VCS
                source_url,
              ],
              output: stdout,
+             error: stderr,
              env: {"GIT_TERMINAL_PROMPT" => "0"}
            ).success?
-      raise "git ls-remote failed (#{source_url}): #{stdout}"
+      raise "git ls-remote failed (#{source_url}): #{stdout} #{stderr}"
     end
 
     # stdio.each_line doesn't work for some reason, had to convert to string first
