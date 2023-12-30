@@ -8,10 +8,13 @@ authors:
 dependencies:
   kemal:
     github: kemalcr/kemal
+    version: 1.4.0
   pg:
     github: will/crystal-pg
+    version: 0.26.0
   lexbor:
     github: kostya/lexbor
+    version: 3.1.2
 
 targets:
   crystaldoc:
