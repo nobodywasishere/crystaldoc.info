@@ -526,7 +526,7 @@ class CrystalDoc::Builder
       sidebar.inner_html += <<-HTML
         <div class="crystaldoc-post-process" style="margin-top: auto; padding: 27px 0 0 30px;">
           <small>
-            Built with Crystal #{Crystal::VERSION}<br>#{Time.utc}
+            Generated using Crystal #{Crystal::VERSION}<br>#{Time.utc}
           </small>
         </div>
       HTML
