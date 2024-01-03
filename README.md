@@ -7,7 +7,13 @@ This is a website for hosting documentation of Crystal Shards.
 CrystalDoc relies on a PostgreSQL database to hold all the information about the repositories. To create a local development version using docker:
 ```sh
 $ docker run --name crystal_doc -p 5432:5432 -e POSTGRES_USER=crystal_doc_server -e POSTGRES_PASSWORD=password -e POSTGRES_DB=crystal_doc -d postgres
-$ psql -h localhost -U crystal_doc_server -f config/postgres_setup.sql
+$ psql -h localhost -U crystal_doc_server -d crystal_doc -f config/postgres_setup.sql
+```
+
+The server can then be run with:
+```sh
+$ export POSTGRES_DB="postgres://crystal_doc_server:password@localhost:5432/crystal_doc"
+$ shards run -- server # or 'searcher', 'builder', etc.
 ```
 
 ## Usage

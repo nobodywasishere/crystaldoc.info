@@ -39,6 +39,23 @@ get "/:serv/:user/:proj/latest" do |env|
   end
 end
 
+get "/:serv/:user/:proj/latest/*path" do |env|
+  unless CrystalDoc::Queries.repo_exists_and_valid(REPO_DB, env.params.url["serv"], env.params.url["user"], env.params.url["proj"])
+    env.response.status_code = 404
+    next
+  end
+
+  latest_version = CrystalDoc::Queries.latest_version(REPO_DB,
+    env.params.url["serv"], env.params.url["user"], env.params.url["proj"]
+  )
+
+  if latest_version.nil?
+    env.response.status_code = 404
+  else
+    env.redirect "/#{env.params.url["serv"]}/#{env.params.url["user"]}/#{env.params.url["proj"]}/#{latest_version}/#{env.params.url["path"]? || "index.html"}"
+  end
+end
+
 get "/:serv/:user/:proj/:version" do |env|
   path = env.request.path
   unless path.ends_with? "/"
@@ -134,7 +151,7 @@ error 404 do |env|
     next render "src/views/404.ecr", "src/views/layout.ecr"
   end
 
-  title = "Repo version failed to build" # ameba:disable Lint/UselessAssign
+  title = "File does not exist" # ameba:disable Lint/UselessAssign
 
   # Shouldn't end up here
   render "src/views/404.ecr", "src/views/layout.ecr"
