@@ -24,15 +24,20 @@ ul {
 }
 
 ul.repo-list>li {
-  margin: 0;
+  margin: 5px 0px;
   border: 1px solid #ccc;
-  display: block;
-  padding: 10px;
+  display: flex;
+  padding: 10px 10px 0px 10px;
   transition: box-shadow 0.3s ease;
+  border-radius: 5px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 ul.repo-list>li>a {
   text-decoration: none;
+  margin-bottom: 10px;
 }
 
 ul.repo-list>li:hover {
@@ -132,6 +137,7 @@ table td {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
+  border-radius: 5px;
   box-sizing: border-box;
 }
 
@@ -174,6 +180,23 @@ a.no-decoration:hover {
 
 .htmx-indicator {
   display: none;
+}
+
+.pill-box {
+  display: inline-block;
+  font-size: 90%;
+  margin-bottom: 10px;
+}
+
+.pill {
+  background-color: #efefef;
+  border-radius: 20px;
+  padding: 5px 10px;
+  margin: 0px 3px;
+}
+
+.pill>a {
+  text-decoration: none;
 }
 
 #new-repository-indicator.htmx-request {
@@ -265,5 +288,9 @@ a.no-decoration:hover {
 
   a.no-decoration:hover {
     color: white;
+  }
+
+  .pill {
+    background-color: #333;
   }
 }

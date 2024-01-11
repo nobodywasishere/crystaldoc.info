@@ -3,7 +3,9 @@
   <% repos.each do |repo| %>
     <li>
       <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %></a>
-      <a href="<%= repo.source_url %>" style="float: right">(<%= repo.service %>)</a>
+      <div class="pill-box">
+        <span class="pill"><a href="<%= repo.source_url %>"><%= repo.service %></a></span>
+      </div>
     </li>
   <% end %>
 </ul>
