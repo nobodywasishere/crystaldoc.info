@@ -153,6 +153,9 @@ div.search-buttons>a {
   text-decoration: none;
   width: 100%;
   padding: 10px;
+  margin: 0 3px;
+  border-radius: 5px;
+
 }
 
 div.search-buttons>a:hover {
