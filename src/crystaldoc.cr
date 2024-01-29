@@ -4,6 +4,7 @@ require "pg"
 require "http/client"
 require "uri"
 require "yaml"
+require "micrate"
 
 module CrystalDoc
   VERSION = "0.1.0"

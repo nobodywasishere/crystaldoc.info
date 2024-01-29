@@ -19,7 +19,6 @@ class CrystalDoc::Builder
 
         if jobs.empty?
           Log.info { "#{idx}: No jobs found." }
-          sleep(50)
           break
         else
           job = jobs.first
@@ -51,7 +50,7 @@ class CrystalDoc::Builder
         end
       end
 
-      sleep(10)
+      sleep(30)
     end
   end
 

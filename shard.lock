@@ -20,6 +20,10 @@ shards:
     git: https://github.com/kostya/lexbor.git
     version: 3.1.3
 
+  micrate:
+    git: https://github.com/nobodywasishere/micrate.git
+    version: 0.14.0+git.commit.08dd6580261f335808ee45579a9aa867d1e6b576
+
   pg:
     git: https://github.com/will/crystal-pg.git
     version: 0.28.0

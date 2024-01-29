@@ -18,7 +18,6 @@ class CrystalDoc::CLI::Searcher
 
         if repos.empty?
           Log.info { "#{idx}: No repos need updating." }
-          sleep(50)
           break
         end
 
@@ -37,7 +36,7 @@ class CrystalDoc::CLI::Searcher
         end
       end
 
-      sleep(10)
+      sleep(30)
     end
   end
 

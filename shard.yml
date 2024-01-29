@@ -10,8 +10,12 @@ dependencies:
     github: kemalcr/kemal
   pg:
     github: will/crystal-pg
+    version: ~> 0.28.0
   lexbor:
     github: kostya/lexbor
+  micrate:
+    github: nobodywasishere/micrate
+    branch: master
 
 targets:
   crystaldoc:

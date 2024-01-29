@@ -50,6 +50,10 @@ OptionParser.parse do |parser|
     parser.on("--workers=COUNT", "Number of workers (defaults to 4)") { |c| workers = c.to_i }
   end
 
+  parser.on "micrate", "Database migration" do
+    cmd = "micrate"
+  end
+
   parser.on("-h", "--help", "Show this help") do
     puts parser
     exit
@@ -116,6 +120,9 @@ when "regenerate"
       )
     end
   end
+when "micrate"
+  Micrate::DB.connection_url = ::Config.postgres_url
+  Micrate::Cli.run
 when "server"
   Dir.mkdir_p "./logs"
   log_file = File.new("./logs/server.log", "a+")
