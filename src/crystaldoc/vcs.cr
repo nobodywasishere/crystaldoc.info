@@ -12,6 +12,7 @@ class CrystalDoc::VCS
   def parse(db : Queriable) : String
     # parse/validate url
     repo = parse_url
+    repo_id = nil
 
     # db transaction
     db.transaction do |tx|
@@ -37,6 +38,11 @@ class CrystalDoc::VCS
 
       CrystalDoc::Queries.upsert_repo_status(conn, nightly_hash, repo_id)
       CrystalDoc::Queries.refresh_repo_versions(conn, repo_id)
+    end
+
+    if repo_id
+      data = Ext.get_data_for(repo["service"], repo["username"], repo["project_name"])
+      CrystalDoc::Queries.update_repo_data(db, repo_id, data) if data
     end
 
     "Successfully added repo"

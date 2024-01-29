@@ -189,6 +189,7 @@ a.no-decoration:hover {
   display: inline-block;
   font-size: 90%;
   margin-bottom: 10px;
+  margin-left: auto;
 }
 
 .pill {

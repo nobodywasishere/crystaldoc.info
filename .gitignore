@@ -9,3 +9,4 @@
 !/public/assets/*
 !/public/favicon.ico
 *.fossil
+/config.yml

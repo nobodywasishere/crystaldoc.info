@@ -73,4 +73,9 @@ class CrystalDoc::CLI::Searcher
     Log.info { "#{idx}: Refreshing repo versions..." }
     CrystalDoc::Queries.refresh_repo_versions(db, repo_id)
   end
+
+  def update_repo_stats(db : Queriable, repo : Repo)
+    data = Ext.get_data_for(repo)
+    CrystalDoc::Queries.update_repo_data(db, data) if data
+  end
 end

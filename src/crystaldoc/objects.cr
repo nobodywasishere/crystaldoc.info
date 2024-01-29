@@ -3,13 +3,14 @@ module CrystalDoc
     include ::DB::Serializable
     include ::DB::Serializable::NonStrict
 
+    getter id : Int32
     getter service : String
     getter username : String
     getter project_name : String
     getter source_url : String
     getter build_type : String
 
-    def initialize(@service, @username, @project_name, @source_url, @build_type = "git")
+    def initialize(@id, @service, @username, @project_name, @source_url, @build_type = "git")
     end
 
     def path

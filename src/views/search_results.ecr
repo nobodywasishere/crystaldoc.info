@@ -1,1 +1,5 @@
-<%= CrystalDoc::Views::RepoList.new(CrystalDoc::Queries.find_repo(REPO_DB, user, proj, distinct)) %>
+<%
+  repo_list = CrystalDoc::Queries.find_repo(REPO_DB, user, proj, distinct)
+  repo_data = repo_list.map{|repo| {repo, CrystalDoc::Queries.get_repo_data(REPO_DB, repo.id)}}.to_h
+%>
+<%= CrystalDoc::Views::RepoList.new(repo_list, repo_data) %>

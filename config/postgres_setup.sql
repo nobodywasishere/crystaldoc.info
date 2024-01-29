@@ -59,3 +59,12 @@ CREATE TABLE featured_repo (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON featured_repo TO crystal_doc_server;
+
+CREATE TABLE repo_stats (
+    id int not null primary key generated always as identity,
+    repo_id int unique references repo on delete cascade,
+    stars int default null,
+    fork bool default false
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON repo_stats TO crystal_doc_server;

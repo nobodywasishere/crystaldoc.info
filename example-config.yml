@@ -1,0 +1,3 @@
+postgres_url: postgres://crystal_doc_server:password@localhost:5432/crystal_doc
+github_api_key: ABCD
+gitlab_api_key: EFGH

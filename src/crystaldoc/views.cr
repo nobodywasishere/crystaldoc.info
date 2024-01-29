@@ -21,8 +21,9 @@ module CrystalDoc
 
     class RepoList
       getter repos : Array(Repo)
+      getter repo_data : Hash(Repo, Ext::Data?)
 
-      def initialize(@repos)
+      def initialize(@repos, @repo_data)
       end
 
       ECR.def_to_s "src/views/repo_list.ecr"

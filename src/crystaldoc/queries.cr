@@ -152,7 +152,7 @@ module CrystalDoc::Queries
 
   def self.find_repo(db : Queriable, user : String, proj : String, distinct : Bool = false) : Array(Repo)
     db.query_all(<<-SQL, user, proj, as: {Repo})
-      SELECT DISTINCT service, username, project_name, source_url, build_type
+      SELECT DISTINCT repo.id, service, username, project_name, source_url, build_type
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
@@ -163,7 +163,7 @@ module CrystalDoc::Queries
 
   def self.random_repo(db : Queriable) : Repo
     db.query_one(<<-SQL, as: Repo)
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, RANDOM()
+      SELECT DISTINCT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, RANDOM()
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
@@ -175,7 +175,7 @@ module CrystalDoc::Queries
 
   def self.recently_added_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, repo.id
+      SELECT DISTINCT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, repo.id
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
@@ -187,12 +187,12 @@ module CrystalDoc::Queries
 
   def self.recently_updated_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
-      SELECT DISTINCT repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, MAX(repo_version.id) as repo_version_id
+      SELECT DISTINCT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, MAX(repo_version.id) as repo_version_id
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_version
         ON repo_version.repo_id = repo.id
       WHERE repo_version.valid = true
-      GROUP BY repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
+      GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       ORDER BY repo_version_id DESC
       LIMIT $1;
     SQL
@@ -200,11 +200,11 @@ module CrystalDoc::Queries
 
   def self.repo_needs_updating(db : Queriable) : Array(Repo)
     db.query_all(<<-SQL, as: {Repo})
-      SELECT service, username, project_name, source_url, build_type, (NOW() - repo_status.last_checked) as date_diff
+      SELECT repo.id, service, username, project_name, source_url, build_type, (NOW() - repo_status.last_checked) as date_diff
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_status
         ON repo_status.repo_id = repo.id
-      WHERE (NOW() - repo_status.last_checked) >= interval '6 hours'
+      WHERE (NOW() - repo_status.last_checked) >= interval '24 hours'
       FOR UPDATE SKIP LOCKED
       LIMIT 1;
     SQL
@@ -244,7 +244,7 @@ module CrystalDoc::Queries
 
   def self.repo_from_source(db : Queriable, source_url : String) : Array(Repo)
     db.query_all(<<-SQL, source_url, as: {Repo})
-      SELECT repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
+      SELECT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
     SQL
@@ -315,7 +315,7 @@ module CrystalDoc::Queries
 
   def self.featured_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
-      SELECT repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
+      SELECT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.featured_repo
         ON featured_repo.repo_id = repo.id
@@ -344,6 +344,32 @@ module CrystalDoc::Queries
       SELECT repo.id
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
+    SQL
+  end
+
+  def self.update_repo_data(db : Queriable, repo_id : Int32, data : Ext::Data)
+    db.exec <<-SQL, repo_id, data.stars, data.fork
+      INSERT INTO crystal_doc.repo_stats (repo_id, stars, fork)
+      VALUES (
+        (
+          SELECT repo.id
+          FROM crystal_doc.repo
+          WHERE repo.id = $1
+        ),
+        $2,
+        $3
+      )
+      ON CONFLICT(repo_id) DO UPDATE SET stars = EXCLUDED.stars, fork = EXCLUDED.fork
+    SQL
+  end
+
+  def self.get_repo_data(db : Queriable, repo_id : Int32) : Ext::Data?
+    db.query_all(<<-SQL, repo_id, as: {Ext::Data})[0]?
+      SELECT repo_stats.stars, repo_stats.fork
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_stats
+        ON repo_stats.repo_id = $1
+      LIMIT 1;
     SQL
   end
 end

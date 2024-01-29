@@ -2,7 +2,8 @@ require "option_parser"
 require "../crystaldoc"
 require "./server"
 
-REPO_DB = DB.open(ENV["POSTGRES_DB"])
+Config  = CrystalDoc::Config.from_yaml(File.read("./config.yml"))
+REPO_DB = DB.open(Config.postgres_url)
 
 cmd = ""
 source = ""
