@@ -9,6 +9,6 @@ CREATE TABLE
 ALTER TABLE
   public.micrate_db_version
 ADD
-  CONSTRAINT micrate_db_version_pkey PRIMARY KEY (id)
+  CONSTRAINT micrate_db_version_pkey PRIMARY KEY (id);
 
-INSERT INTO public.micrate_db_version ("id", "is_applied", "tstamp", "version_id") values (1, true, '2024-01-29 15:12:46.117382', '20240129083342')
+INSERT INTO public.micrate_db_version ("id", "is_applied", "tstamp", "version_id") values (1, true, '2024-01-29 15:12:46.117382', '20240129083342');
