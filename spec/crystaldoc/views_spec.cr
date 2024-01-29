@@ -16,7 +16,8 @@ describe CrystalDoc::Views do
   describe CrystalDoc::Views::RepoList do
     it "renders to a string" do
       repo_list = [CrystalDoc::Repo.new(0, "service", "username", "project_name", "source_url")]
-      CrystalDoc::Views::RepoList.new(repo_list).to_s.should be_a(String)
+      repo_data = Hash(CrystalDoc::Repo, CrystalDoc::Ext::Data | Nil).new
+      CrystalDoc::Views::RepoList.new(repo_list, repo_data).to_s.should be_a(String)
     end
   end
 
