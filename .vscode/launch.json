@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "crystal: debug server",
+      "program": "${workspaceFolder}/bin/crystaldoc",
+      "args": [
+        "server"
+      ],
+      "cwd": "${workspaceFolder}",
+      "initCommands": [
+        "command script import ${workspaceFolder}/.vscode/crystal_formatters.py"
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "crystal: debug builder",
+      "program": "${workspaceFolder}/bin/crystaldoc",
+      "args": [
+        "builder",
+        "--workers=1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "initCommands": [
+        "command script import ${workspaceFolder}/.vscode/crystal_formatters.py"
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "crystal: debug searcher",
+      "program": "${workspaceFolder}/bin/crystaldoc",
+      "args": [
+        "searcher",
+        "--workers=1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "initCommands": [
+        "command script import ${workspaceFolder}/.vscode/crystal_formatters.py"
+      ]
+    }
+  ]
+}
