@@ -50,7 +50,7 @@ class CrystalDoc::Builder
         end
       end
 
-      sleep(30)
+      sleep(15)
     end
   end
 

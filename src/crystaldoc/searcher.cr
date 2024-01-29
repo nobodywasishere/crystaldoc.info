@@ -37,7 +37,7 @@ class CrystalDoc::CLI::Searcher
         end
       end
 
-      sleep(30)
+      sleep(15)
     end
   end
 
