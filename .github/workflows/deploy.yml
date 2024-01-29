@@ -32,24 +32,24 @@ jobs:
       - name: Run tests
         run: LOG_LEVEL=error crystal spec
 
-  deploy:
-    name: Deploy
-    needs: spec
+  # deploy:
+  #   name: Deploy
+  #   needs: spec
 
-    runs-on: ubuntu-latest
-    steps:
-      - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.PORT }}
-          script: |
-            cd /srv/crystaldoc.info/
-            git pull
-            shards install
-            shards build --release -Dpreview_mt
-            systemctl --user restart crystaldoc-server.service
-            systemctl --user restart crystaldoc-searcher.service
-            systemctl --user restart crystaldoc-builder.service
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: executing remote ssh commands using password
+  #       uses: appleboy/ssh-action@v0.1.7
+  #       with:
+  #         host: ${{ secrets.HOST }}
+  #         username: ${{ secrets.USERNAME }}
+  #         password: ${{ secrets.PASSWORD }}
+  #         port: ${{ secrets.PORT }}
+  #         script: |
+  #           cd /srv/crystaldoc.info/
+  #           git pull
+  #           shards install
+  #           shards build --release -Dpreview_mt
+  #           systemctl --user restart crystaldoc-server.service
+  #           systemctl --user restart crystaldoc-searcher.service
+  #           systemctl --user restart crystaldoc-builder.service
