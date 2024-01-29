@@ -25,6 +25,7 @@ class CrystalDoc::CLI::Searcher
         repo = repos.first
 
         update_repo(conn, repo)
+        update_repo_stats(conn, repo)
       rescue ex
         Log.error { "#{idx}: Searcher Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
         tx.try &.rollback # if ex.is_a? PG::Error
