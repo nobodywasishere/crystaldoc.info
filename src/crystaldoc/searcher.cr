@@ -76,6 +76,6 @@ class CrystalDoc::CLI::Searcher
 
   def update_repo_stats(db : Queriable, repo : Repo)
     data = Ext.get_data_for(repo)
-    CrystalDoc::Queries.update_repo_data(db, data) if data
+    CrystalDoc::Queries.update_repo_data(db, repo.id, data) if data
   end
 end
