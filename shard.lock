@@ -22,7 +22,7 @@ shards:
 
   micrate:
     git: https://github.com/nobodywasishere/micrate.git
-    version: 0.14.0+git.commit.08dd6580261f335808ee45579a9aa867d1e6b576
+    version: 0.14.0+git.commit.15205926c616f1cc2477e7e30466ca89e0f9f9bf
 
   pg:
     git: https://github.com/will/crystal-pg.git
