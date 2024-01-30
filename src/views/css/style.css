@@ -195,13 +195,18 @@ a.no-decoration:hover {
 .pill {
   background-color: #efefef;
   border-radius: 20px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   margin: 0px 3px;
+  vertical-align: middle;
 }
 
 .pill>a {
   text-decoration: none;
   color: inherit !important;
+}
+
+.fa {
+  font-size: 16px !important;
 }
 
 #new-repository-indicator.htmx-request {
