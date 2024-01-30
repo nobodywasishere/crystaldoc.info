@@ -8,7 +8,9 @@
           <% if data.fork %>
             <span class="pill">&#x1F374;</span>
           <% end %>
-          <span class="pill"><%= data.stars.humanize.gsub(".0", "") %> &#x2B50;</span>
+          <% if data.stars > 0 %>
+            <span class="pill"><%= data.stars.humanize.gsub(".0", "") %> &#x2B50;</span>
+          <% end %>
         <% end %>
         <span class="pill"><a href="<%= repo.source_url %>"><%= repo.service %></a></span>
       </div>
