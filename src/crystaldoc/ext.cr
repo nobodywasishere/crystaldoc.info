@@ -29,7 +29,7 @@ module CrystalDoc::Ext
     headers["Accept"] = "application/vnd.github+json"
     headers["X-Github-Api-Version"] = "2022-11-28"
     headers["User-Agent"] = "CrystalDoc-info"
-    headers["Authorization"] = ::Config.github_api_key
+    headers["Authorization"] = "Bearer #{::Config.github_api_key}"
 
     url = URI.new("https", "api.github.com", path: "/repos/#{user}/#{project}")
 
