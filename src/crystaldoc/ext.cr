@@ -2,6 +2,8 @@
 # Methods for getting data from external services.
 #
 module CrystalDoc::Ext
+  Log = ::Log.for("ext")
+
   record Data, stars : Int32, fork : Bool do
     include ::DB::Serializable
     include ::DB::Serializable::NonStrict
@@ -32,6 +34,8 @@ module CrystalDoc::Ext
     url = URI.new("https", "api.github.com", path: "/repos/#{user}/#{project}")
 
     response = HTTP::Client.get(url: url, headers: headers)
+
+    Log.info { "github data (#{response.status_code}): #{response.body}" }
 
     return unless response.success?
 
@@ -65,6 +69,8 @@ module CrystalDoc::Ext
     url = URI.new("https", "gitlab.com", path: "/api/v4/projects/#{user}%2F#{project}")
 
     response = HTTP::Client.get(url: url, headers: headers)
+
+    Log.info { "gitlab data (#{response.status_code}): #{response.body}" }
 
     return unless response.success?
 
