@@ -6,13 +6,28 @@
       <div class="pill-box">
         <% if (data = repo_data[repo]?) %>
           <% if data.fork %>
-            <span class="pill">&#x1F374;</span>
+            <span class="pill"><i class="fa fa-code-fork" aria-hidden="true"></i></span>
           <% end %>
           <% if data.stars > 0 %>
             <span class="pill"><%= data.stars.humanize.gsub(".0", "") %> &#x2B50;</span>
           <% end %>
         <% end %>
-        <span class="pill"><a href="<%= repo.source_url %>"><%= repo.service %></a></span>
+        <span class="pill">
+          <a href="<%= repo.source_url %>">
+            <%=
+              case repo.service
+              when "github"
+                %q(<i class="fa fa-github" aria-hidden="true"></i>)
+              when "gitlab"
+                %q(<i class="fa fa-gitlab" aria-hidden="true"></i>)
+              when "git-sr-ht"
+                %q(<i class="fa fa-circle-o" aria-hidden="true"></i>)
+              else
+                repo.service
+              end
+            %>
+          </a>
+        </span>
       </div>
     </li>
   <% end %>

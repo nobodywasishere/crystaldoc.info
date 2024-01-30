@@ -201,6 +201,7 @@ a.no-decoration:hover {
 
 .pill>a {
   text-decoration: none;
+  color: inherit !important;
 }
 
 #new-repository-indicator.htmx-request {
