@@ -35,9 +35,10 @@ module CrystalDoc::Ext
 
     response = HTTP::Client.get(url: url, headers: headers)
 
-    Log.info { "github data (#{response.status_code}): #{response.body}" }
-
-    return unless response.success?
+    unless response.success?
+      Log.info { "github data (#{response.status_code}): #{response.body}" }
+      return
+    end
 
     pull = JSON::PullParser.new(response.body)
 
@@ -70,9 +71,10 @@ module CrystalDoc::Ext
 
     response = HTTP::Client.get(url: url, headers: headers)
 
-    Log.info { "gitlab data (#{response.status_code}): #{response.body}" }
-
-    return unless response.success?
+    unless response.success?
+      Log.info { "gitlab data (#{response.status_code}): #{response.body}" }
+      return
+    end
 
     pull = JSON::PullParser.new(response.body)
 
