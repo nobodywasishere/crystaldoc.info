@@ -75,7 +75,15 @@ class CrystalDoc::CLI::Searcher
   end
 
   def update_repo_stats(db : Queriable, repo : Repo)
+    Log.info { "#{idx}: Getting repo stats..." }
     data = Ext.get_data_for(repo)
-    CrystalDoc::Queries.update_repo_data(db, repo.id, data) if data
+
+    if data
+      Log.info { "#{idx}: #{data.stars} stars, is fork? #{data.fork}" }
+      CrystalDoc::Queries.update_repo_data(db, repo.id, data)
+      Log.info { "#{idx}: Successfully updated data" }
+    else
+      Log.info { "#{idx}: No data found" }
+    end
   end
 end
