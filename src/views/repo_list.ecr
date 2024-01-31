@@ -13,7 +13,7 @@
           <% end %>
         <% end %>
         <span class="pill">
-          <a href="<%= repo.source_url %>">
+          <a href="<%= repo.source_url %>" aria-label="Link to source code on <%= repo.service%>">
             <%=
               case repo.service
               when "github"
