@@ -319,6 +319,10 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.featured_repo
         ON featured_repo.repo_id = repo.id
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true
+      GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       ORDER BY repo.id DESC
       LIMIT $1;
     SQL
@@ -330,6 +334,10 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.repo_stats
         ON repo_stats.repo_id = repo.id
+      INNER JOIN crystal_doc.repo_version
+        ON repo_version.repo_id = repo.id
+      WHERE repo_version.valid = true
+      GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, repo_stats.stars
       ORDER BY repo_stats.stars DESC
       LIMIT $1;
     SQL
