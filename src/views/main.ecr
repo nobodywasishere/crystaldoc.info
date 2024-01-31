@@ -11,9 +11,9 @@
   <div id="search-results"></div>
 </form>
 
-<h2>Featured</h2>
+<h2>Most Popular</h2>
 <%
-  repo_list = CrystalDoc::Queries.featured_repos(REPO_DB, 10)
+  repo_list = CrystalDoc::Queries.popular_repos(REPO_DB, 10)
   repo_data = repo_list.map{|repo| {repo, CrystalDoc::Queries.get_repo_data(REPO_DB, repo.id)}}.to_h
 %>
 <%= CrystalDoc::Views::RepoList.new(repo_list, repo_data).to_s %>

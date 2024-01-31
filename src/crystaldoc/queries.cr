@@ -319,7 +319,18 @@ module CrystalDoc::Queries
       FROM crystal_doc.repo
       INNER JOIN crystal_doc.featured_repo
         ON featured_repo.repo_id = repo.id
-      ORDER BY repo.id ASC
+      ORDER BY repo.id DESC
+      LIMIT $1;
+    SQL
+  end
+
+  def self.popular_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
+    db.query_all(<<-SQL, count, as: {Repo})
+      SELECT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
+      FROM crystal_doc.repo
+      INNER JOIN crystal_doc.repo_stats
+        ON repo_stats.repo_id = repo.id
+      ORDER BY repo_stats.stars DESC
       LIMIT $1;
     SQL
   end
