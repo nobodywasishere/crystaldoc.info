@@ -383,4 +383,20 @@ module CrystalDoc::Queries
       LIMIT 1;
     SQL
   end
+
+  def self.regenerate_all_docs(db : Queriable) : Int32
+    versions = db.query_all(<<-SQL, as: Int32)
+      SELECT repo_version.id
+      FROM crystal_doc.repo_version;
+    SQL
+
+    count = 0
+    versions.each do |v|
+      next if CrystalDoc::DocJob.in_queue?(REPO_DB, v)
+      CrystalDoc::Queries.insert_doc_job(REPO_DB, v, 0)
+      count += 1
+    end
+
+    count
+  end
 end

@@ -76,15 +76,7 @@ when "remove-featured"
     CrystalDoc::Queries.remove_featured_repo(conn, repo_id)
   end
 when "regenerate-all"
-  versions = REPO_DB.query_all(<<-SQL, as: Int32)
-    SELECT repo_version.id
-    FROM crystal_doc.repo_version;
-  SQL
-
-  versions.each do |v|
-    next if CrystalDoc::DocJob.in_queue?(REPO_DB, v)
-    CrystalDoc::Queries.insert_doc_job(REPO_DB, v, 0)
-  end
+  CrystalDoc::Queries.regenerate_all_docs(REPO_DB)
 when "update-repo-versions"
   REPO_DB.transaction do |tx|
     conn = tx.connection
@@ -130,6 +122,10 @@ when "server"
   Log.setup(:info, Log::IOBackend.new(log_file))
   Kemal.config.logger = Kemal::LogHandler.new(log_file)
   Kemal.config.env = "production"
+
+  spawn do
+    CrystalDoc::Bot.poll
+  end
 
   Kemal.run
 when "builder"

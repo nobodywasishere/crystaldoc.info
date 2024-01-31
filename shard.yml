@@ -16,6 +16,9 @@ dependencies:
   micrate:
     github: nobodywasishere/micrate
     branch: master
+  tourmaline:
+    github: nobodywasishere/tourmaline
+    branch: master
 
 targets:
   crystaldoc:
