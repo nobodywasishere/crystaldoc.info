@@ -123,10 +123,6 @@ when "server"
   Kemal.config.logger = Kemal::LogHandler.new(log_file)
   Kemal.config.env = "production"
 
-  spawn do
-    CrystalDoc::Bot.poll
-  end
-
   Kemal.run
 when "builder"
   Dir.mkdir_p "./logs"

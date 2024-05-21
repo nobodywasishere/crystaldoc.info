@@ -5,7 +5,6 @@ require "http/client"
 require "uri"
 require "yaml"
 require "micrate"
-require "tourmaline"
 
 module CrystalDoc
   VERSION = "0.1.0"
@@ -14,7 +13,6 @@ module CrystalDoc
 end
 
 require "./crystaldoc/config"
-require "./crystaldoc/bot"
 require "./crystaldoc/vcs"
 require "./crystaldoc/ext"
 require "./crystaldoc/html"

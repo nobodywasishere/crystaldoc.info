@@ -12,10 +12,6 @@ shards:
     git: https://github.com/crystal-loot/exception_page.git
     version: 0.3.1
 
-  http_proxy:
-    git: https://github.com/mamantoha/http_proxy.git
-    version: 0.10.1+git.commit.98ed90f82c02f2870e326b63974cb582f99ceddd
-
   kemal:
     git: https://github.com/kemalcr/kemal.git
     version: 1.4.0
@@ -35,8 +31,4 @@ shards:
   radix:
     git: https://github.com/luislavena/radix.git
     version: 0.4.1
-
-  tourmaline:
-    git: https://github.com/nobodywasishere/tourmaline.git
-    version: 0.29.0+git.commit.b20a604ad709f765716d27b6ea9f8c15ef5c673a
 
