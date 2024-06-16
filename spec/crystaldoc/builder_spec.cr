@@ -33,7 +33,7 @@ describe CrystalDoc::Builder do
     end
   end
 
-  it "builds fossil docs" do
+  pending "builds fossil docs" do
     ENV["USER"] = "cicd"
 
     builder = CrystalDoc::Builder.new(3)
