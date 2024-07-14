@@ -173,18 +173,6 @@ module CrystalDoc::Queries
     SQL
   end
 
-  def self.recently_added_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
-    db.query_all(<<-SQL, count, as: {Repo})
-      SELECT DISTINCT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, repo.id
-      FROM crystal_doc.repo
-      INNER JOIN crystal_doc.repo_version
-        ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true
-      ORDER BY repo.id DESC
-      LIMIT $1;
-    SQL
-  end
-
   def self.recently_updated_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
     db.query_all(<<-SQL, count, as: {Repo})
       SELECT DISTINCT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, MAX(repo_version.id) as repo_version_id
@@ -301,30 +289,6 @@ module CrystalDoc::Queries
       SELECT COUNT(repo_version.id)
       FROM crystal_doc.repo_version
       WHERE repo_version.valid = true;
-    SQL
-  end
-
-  def self.repo_version_invalid_count(db : Queriable)
-    db.scalar(<<-SQL).as(Int64)
-      SELECT COUNT(repo_version.id)
-      FROM crystal_doc.repo_version
-      WHERE repo_version.valid = false
-      AND repo_version.id NOT IN (SELECT doc_job.version_id FROM crystal_doc.doc_job);
-    SQL
-  end
-
-  def self.featured_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
-    db.query_all(<<-SQL, count, as: {Repo})
-      SELECT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
-      FROM crystal_doc.repo
-      INNER JOIN crystal_doc.featured_repo
-        ON featured_repo.repo_id = repo.id
-      INNER JOIN crystal_doc.repo_version
-        ON repo_version.repo_id = repo.id
-      WHERE repo_version.valid = true
-      GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
-      ORDER BY repo.id DESC
-      LIMIT $1;
     SQL
   end
 

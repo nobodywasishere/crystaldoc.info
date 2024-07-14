@@ -126,12 +126,6 @@ class CrystalDoc::VCS
     stdout.to_s.match(/^(.+)\s+HEAD/).try &.[1]
   end
 
-  def versions(&)
-    self.class.versions(@source_url) do |hash, tag|
-      yield hash, tag
-    end
-  end
-
   def self.versions(source_url, &)
     self.new(source_url) # Check if URL valid
 
