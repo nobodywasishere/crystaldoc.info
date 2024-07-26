@@ -462,6 +462,7 @@ class CrystalDoc::Builder
   def safe_execute(cmd : String, args : Array(String), folder : String,
                    rw_dirs : Array(String), ro_dirs : Array(String),
                    networking : Bool = false) : Process::Status
+    fj_cmd = "firejail"
     fj_args = [
       "--noprofile",
       "--restrict-namespaces",
@@ -474,14 +475,19 @@ class CrystalDoc::Builder
 
     fj_args += ["--net=none"] unless networking
 
-    fj_args += [cmd, *args]
+    {% if flag?(:darwin) %}
+      fj_cmd = cmd
+      fj_args = args
+    {% else %}
+      fj_args += [cmd, *args]
+    {% end %}
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new
 
     Log.info { "#{idx}: Safe executing: firejail #{fj_args.join(" ")}" }
 
-    result = Process.run("firejail", fj_args,
+    result = Process.run(fj_cmd, fj_args,
       chdir: folder,
       env: {"POSTGRES_DB" => ""},
       output: stdout, error: stderr
