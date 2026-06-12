@@ -4,7 +4,7 @@
     <li>
       <a href="<%= repo.path %>"><%= "#{repo.username}/#{repo.project_name}" %></a>
       <div class="pill-box">
-        <% if (data = repo_data[repo]?) %>
+        <% if data = repo_data[repo]? %>
           <% if data.fork %>
             <span class="pill"><i class="fa fa-code-fork" aria-hidden="true"></i></span>
           <% end %>

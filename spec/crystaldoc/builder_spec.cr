@@ -7,11 +7,11 @@ describe CrystalDoc::Builder do
 
       repo = CrystalDoc::Repo.new(0, "github", "crystal-lang", "shards", "https://github.com/crystal-lang/shards")
 
-      builder.build_git(repo, "master").should eq(true)
+      builder.build_git(repo, "master").should be_true
 
       repo = CrystalDoc::Repo.new(0, "github", "Ragmaanir", "id3", "https://github.com/Ragmaanir/id3")
 
-      builder.build_git(repo, "v0.1.1").should eq(true)
+      builder.build_git(repo, "v0.1.1").should be_true
     end
   end
 
@@ -21,7 +21,7 @@ describe CrystalDoc::Builder do
 
       repo = CrystalDoc::Repo.new(0, "this", "repo", "doesnt", "https://example.com/exist")
 
-      builder.build_git(repo, "master").should eq(false)
+      builder.build_git(repo, "master").should be_false
     end
 
     it "if doc generation failed" do
@@ -29,7 +29,7 @@ describe CrystalDoc::Builder do
 
       repo = CrystalDoc::Repo.new(0, "github", "Ragmaanir", "id3", "https://github.com/Ragmaanir/id3")
 
-      builder.build_git(repo, "0.1.0").should eq(false)
+      builder.build_git(repo, "0.1.0").should be_false
     end
   end
 
@@ -40,6 +40,6 @@ describe CrystalDoc::Builder do
 
     repo = CrystalDoc::Repo.new(0, "chiselapp", "MistressRemilia", "libremiliacr", "https://chiselapp.com/user/MistressRemilia/repository/libremiliacr/index")
 
-    builder.build_fossil(repo, "v0.11.2").should eq(true)
+    builder.build_fossil(repo, "v0.11.2").should be_true
   end
 end

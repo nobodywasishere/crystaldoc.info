@@ -23,7 +23,7 @@ class CrystalDoc::VCS
         INSERT INTO crystal_doc.repo (service, username, project_name, source_url)
         VALUES ($1, $2, $3, $4)
         RETURNING id
-      SQL
+        SQL
 
       # get nightly version
       if (nightly_ver = main_branch).nil? || (nightly_hash = main_commit_hash).nil?
@@ -55,9 +55,9 @@ class CrystalDoc::VCS
     Log.info { "Verifying URL status code successful" }
 
     stdout = IO::Memory.new
-    response = Process.run("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}", source_url], output: stdout)
+    Process.run("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}", source_url], output: stdout)
 
-    Log.info { "Source URL '#{source_url}' HTTP code: #{stdout.to_s}" }
+    Log.info { "Source URL '#{source_url}' HTTP code: #{stdout}" }
     return false unless HTTP::Status.new(stdout.to_s.to_i).success? || HTTP::Status.new(stdout.to_s.to_i).redirection?
 
     Log.info { "Verifying git url successful" }
@@ -127,7 +127,7 @@ class CrystalDoc::VCS
   end
 
   def self.versions(source_url, &)
-    self.new(source_url) # Check if URL valid
+    new(source_url) # Check if URL valid
 
     stdout = IO::Memory.new
     stderr = IO::Memory.new

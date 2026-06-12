@@ -13,7 +13,7 @@ module CrystalDoc::Queries
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
       ORDER BY repo_version.id DESC
       LIMIT 1;
-    SQL
+      SQL
   end
 
   def self.update_latest_repo_version(db : Queriable, repo_id : Int32, latest_version_id : Int32)
@@ -28,7 +28,7 @@ module CrystalDoc::Queries
         $2
       )
       ON CONFLICT(repo_id) DO UPDATE SET latest_version = EXCLUDED.latest_version
-    SQL
+      SQL
   end
 
   def self.current_repo_versions(db : Queriable, repo_id) : Array(String)
@@ -36,7 +36,7 @@ module CrystalDoc::Queries
       SELECT repo_version.commit_id
       FROM crystal_doc.repo_version
       WHERE repo_version.repo_id = $1
-    SQL
+      SQL
   end
 
   def self.insert_repo_version(db : Queriable, repo_id : Int32, tag : String, nightly : Bool) : Int32
@@ -46,7 +46,7 @@ module CrystalDoc::Queries
       ON CONFLICT (repo_id, commit_id) DO UPDATE
       SET repo_id = crystal_doc.repo_version.repo_id
       RETURNING id
-    SQL
+      SQL
   end
 
   def self.refresh_repo_versions(db : Queriable, repo_id : Int32)
@@ -54,7 +54,7 @@ module CrystalDoc::Queries
       SELECT repo.source_url
       FROM crystal_doc.repo
       WHERE repo.id = $1
-    SQL
+      SQL
 
     last_version_id = nil
     new_version_ids = [] of Int32
@@ -82,7 +82,7 @@ module CrystalDoc::Queries
     end
 
     unless last_version_id.nil?
-      self.update_latest_repo_version(db, repo_id, last_version_id)
+      update_latest_repo_version(db, repo_id, last_version_id)
     end
   end
 
@@ -96,7 +96,7 @@ module CrystalDoc::Queries
         AND repo.service = $2
         AND repo.username = $3
         AND repo.project_name = $4
-    SQL
+      SQL
   end
 
   def self.mark_version_invalid(db : Queriable, commit : String, service : String, username : String, project_name : String)
@@ -109,7 +109,7 @@ module CrystalDoc::Queries
         AND repo.service = $2
         AND repo.username = $3
         AND repo.project_name = $4
-    SQL
+      SQL
   end
 
   def self.repo_nightly_version_id(db : Queriable, service : String, username : String, project_name : String) : Int32
@@ -120,7 +120,7 @@ module CrystalDoc::Queries
         ON repo.id = repo_version.repo_id
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.nightly = true
       LIMIT 1;
-    SQL
+      SQL
   end
 
   def self.versions_json(db : Queriable, service : String, username : String, project_name : String) : String
@@ -131,7 +131,7 @@ module CrystalDoc::Queries
         ON repo.id = repo_version.repo_id
       WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.valid = true
       ORDER BY repo_version.id ASC
-    SQL
+      SQL
 
     output = [] of Hash(String, String | Bool)
 
@@ -158,7 +158,7 @@ module CrystalDoc::Queries
         ON repo_version.repo_id = repo.id
       WHERE repo_version.valid = true AND (position(LOWER($1) in LOWER(username)) > 0 #{distinct ? "AND" : "OR"} position(LOWER($2) in LOWER(project_name)) > 0)
       LIMIT 10;
-    SQL
+      SQL
   end
 
   def self.random_repo(db : Queriable) : Repo
@@ -170,7 +170,7 @@ module CrystalDoc::Queries
       WHERE repo_version.valid = true
       ORDER BY RANDOM()
       LIMIT 1;
-    SQL
+      SQL
   end
 
   def self.recently_updated_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
@@ -183,7 +183,7 @@ module CrystalDoc::Queries
       GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       ORDER BY repo_version_id DESC
       LIMIT $1;
-    SQL
+      SQL
   end
 
   def self.repo_needs_updating(db : Queriable) : Array(Repo)
@@ -195,7 +195,7 @@ module CrystalDoc::Queries
       WHERE (NOW() - repo_status.last_checked) >= interval '24 hours'
       FOR UPDATE SKIP LOCKED
       LIMIT 1;
-    SQL
+      SQL
   end
 
   def self.repo_exists(db : Queriable, service : String, username : String, project_name : String) : Bool
@@ -205,7 +205,7 @@ module CrystalDoc::Queries
         FROM crystal_doc.repo
         WHERE service = $1 AND username = $2 AND project_name = $3
       )
-    SQL
+      SQL
   end
 
   def self.repo_exists_and_valid(db : Queriable, service : String, username : String, project_name : String) : Bool
@@ -217,7 +217,7 @@ module CrystalDoc::Queries
           ON repo_version.repo_id = repo.id
         WHERE service = $1 AND username = $2 AND project_name = $3 AND repo_version.valid = true
       )
-    SQL
+      SQL
   end
 
   def self.repo_exists(db : Queriable, source_url : String) : Bool
@@ -227,7 +227,7 @@ module CrystalDoc::Queries
         FROM crystal_doc.repo
         WHERE source_url = $1
       )
-    SQL
+      SQL
   end
 
   def self.repo_from_source(db : Queriable, source_url : String) : Array(Repo)
@@ -235,7 +235,7 @@ module CrystalDoc::Queries
       SELECT repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
-    SQL
+      SQL
   end
 
   def self.repo_version_exists(db : Queriable, service : String, username : String, project_name : String, version : String) : Bool
@@ -247,7 +247,7 @@ module CrystalDoc::Queries
           ON repo.id = repo_version.repo_id
         WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.commit_id = $4
       )
-    SQL
+      SQL
   end
 
   def self.upsert_repo_status(db : Queriable, last_commit : String, repo_id : Int32)
@@ -264,7 +264,7 @@ module CrystalDoc::Queries
         now()
       )
       ON CONFLICT(repo_id) DO UPDATE SET (last_commit, last_checked) = (EXCLUDED.last_commit, EXCLUDED.last_checked)
-    SQL
+      SQL
   end
 
   def self.insert_doc_job(db : Queriable, version_id : Int32, priority : Int32)
@@ -274,14 +274,14 @@ module CrystalDoc::Queries
       VALUES ($1, $2)
       ON CONFLICT(version_id) DO NOTHING
       RETURNING id
-    SQL
+      SQL
   end
 
   def self.repo_count(db : Queriable)
     db.scalar(<<-SQL).as(Int64)
       SELECT COUNT(repo.id)
       FROM crystal_doc.repo;
-    SQL
+      SQL
   end
 
   def self.repo_version_valid_count(db : Queriable)
@@ -289,7 +289,7 @@ module CrystalDoc::Queries
       SELECT COUNT(repo_version.id)
       FROM crystal_doc.repo_version
       WHERE repo_version.valid = true;
-    SQL
+      SQL
   end
 
   def self.popular_repos(db : Queriable, count : Int32 = 10) : Array(Repo)
@@ -304,7 +304,7 @@ module CrystalDoc::Queries
       GROUP BY repo.id, repo.service, repo.username, repo.project_name, repo.source_url, repo.build_type, repo_stats.stars
       ORDER BY repo_stats.stars DESC
       LIMIT $1;
-    SQL
+      SQL
   end
 
   def self.add_featured_repo(db : Queriable, repo_id : Int32)
@@ -312,14 +312,14 @@ module CrystalDoc::Queries
       INSERT INTO crystal_doc.featured_repo (repo_id)
       VALUES ($1)
       ON CONFLICT (repo_id) DO NOTHING;
-    SQL
+      SQL
   end
 
   def self.remove_featured_repo(db : Queriable, repo_id : Int32)
     db.exec <<-SQL, repo_id
       DELETE FROM crystal_doc.featured_repo
       WHERE featured_repo.repo_id = $1;
-    SQL
+      SQL
   end
 
   def self.get_repo_id(db : Queriable, source_url : String)
@@ -327,7 +327,7 @@ module CrystalDoc::Queries
       SELECT repo.id
       FROM crystal_doc.repo
       WHERE repo.source_url = $1
-    SQL
+      SQL
   end
 
   def self.update_repo_data(db : Queriable, repo_id : Int32, data : Ext::Data)
@@ -343,7 +343,7 @@ module CrystalDoc::Queries
         $3
       )
       ON CONFLICT(repo_id) DO UPDATE SET stars = EXCLUDED.stars, fork = EXCLUDED.fork
-    SQL
+      SQL
   end
 
   def self.get_repo_data(db : Queriable, repo_id : Int32) : Ext::Data?
@@ -353,14 +353,14 @@ module CrystalDoc::Queries
       INNER JOIN crystal_doc.repo_stats
         ON repo_stats.repo_id = $1
       LIMIT 1;
-    SQL
+      SQL
   end
 
   def self.regenerate_all_docs(db : Queriable) : Int32
     versions = db.query_all(<<-SQL, as: Int32)
       SELECT repo_version.id
       FROM crystal_doc.repo_version;
-    SQL
+      SQL
 
     count = 0
     versions.each do |v|

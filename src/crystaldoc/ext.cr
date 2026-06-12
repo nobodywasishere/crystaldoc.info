@@ -19,8 +19,6 @@ module CrystalDoc::Ext
       get_github_data_for(username, project_name)
     when "gitlab"
       get_gitlab_data_for(username, project_name)
-    else
-      nil
     end
   end
 

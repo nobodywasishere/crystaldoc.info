@@ -13,12 +13,12 @@ workers = 4
 OptionParser.parse do |parser|
   parser.on "add-featured", "Add repo to featured" do
     cmd = "add-featured"
-    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |url| source = url }
   end
 
   parser.on "remove-featured", "Remove repo from featured" do
     cmd = "remove-featured"
-    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |url| source = url }
   end
 
   parser.on "regenerate-all", "Regenerate all repo docs as doc jobs" do
@@ -27,13 +27,13 @@ OptionParser.parse do |parser|
 
   parser.on "regenerate", "Regenerate repo doc version" do
     cmd = "regenerate"
-    parser.on("--version=VERSION", "Repo git tag") { |w| version = w }
-    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+    parser.on("--version=VERSION", "Repo git tag") { |ver| version = ver }
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |url| source = url }
   end
 
   parser.on "update-repo-versions", "Use the searcher to search for new repo versions" do
     cmd = "update-repo-versions"
-    parser.on("--source=SOURCE_URL", "Repo git URL") { |t| source = t }
+    parser.on("--source=SOURCE_URL", "Repo git URL") { |url| source = url }
   end
 
   parser.on "server", "Kemal server" do
@@ -42,12 +42,12 @@ OptionParser.parse do |parser|
 
   parser.on "builder", "Docs builder" do
     cmd = "builder"
-    parser.on("--workers=COUNT", "Number of workers (defaults to 4)") { |c| workers = c.to_i }
+    parser.on("--workers=COUNT", "Number of workers (defaults to 4)") { |count| workers = count.to_i }
   end
 
   parser.on "searcher", "Docs searcher" do
     cmd = "searcher"
-    parser.on("--workers=COUNT", "Number of workers (defaults to 4)") { |c| workers = c.to_i }
+    parser.on("--workers=COUNT", "Number of workers (defaults to 4)") { |count| workers = count.to_i }
   end
 
   parser.on "micrate", "Database migration" do

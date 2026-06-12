@@ -225,12 +225,34 @@ class CrystalDoc::Builder
     build_dir = Path["#{repo.service}-#{repo.username}-#{repo.project_name}-#{version}"].expand.to_s
     fossil_file = build_dir + ".fossil"
     repo_output_dir = Path["public#{repo.path}/#{version}"].expand.to_s
+
+    build_fossil_inner(repo, version, build_dir, fossil_file, repo_output_dir)
+  rescue ex
+    Log.error { "#{idx}: Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+
+    unless repo_output_dir.nil?
+      execute("rm", ["-rf", repo_output_dir], current_dir)
+      execute("mkdir", ["-p", repo_output_dir], current_dir)
+      File.write "#{repo_output_dir}/index.html",
+        CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
+    end
+
+    false
+  ensure
+    unless build_dir.nil?
+      execute("rm", ["-rf", build_dir], current_dir)
+    end
+
+    unless fossil_file.nil?
+      execute("rm", ["-rf", fossil_file], current_dir)
+    end
+  end
+
+  private def build_fossil_inner(repo : Repo, version : String, build_dir : String, fossil_file : String, repo_output_dir : String) : Bool
     Log.info { "#{idx}: Repo output dir: #{repo_output_dir}" }
 
     execute("rm", ["-rf", build_dir], current_dir)
-
     execute("rm", ["-rf", fossil_file], current_dir)
-
     Dir.mkdir_p(build_dir)
 
     unless fossil_clone(repo.source_url, fossil_file).success?
@@ -263,18 +285,15 @@ class CrystalDoc::Builder
 
     post_process(build_dir, repo, version)
 
-    # make destination folder if necessary
     Log.info { "#{idx}: Deleting destination folder..." }
     execute("rm", ["-rf", repo_output_dir], current_dir)
 
-    # make destination folder if necessary
     Log.info { "#{idx}: Creating destination folder..." }
     unless execute("mkdir", ["-p", Path["public#{repo.path}"].expand.to_s], current_dir).success?
       Log.error { "#{idx}: Failed to create destination folder" }
       raise "Failed to create destination folder"
     end
 
-    # move ./docs folder to destination folder
     Log.info { "#{idx}: Copying docs to destination folder..." }
     unless execute("mv", ["docs", repo_output_dir], build_dir).success?
       Log.error { "#{idx}: Failed to copy docs to destination folder #{repo_output_dir}" }
@@ -282,31 +301,6 @@ class CrystalDoc::Builder
     end
 
     true
-  rescue ex
-    Log.error { "#{idx}: Builder Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
-
-    unless repo_output_dir.nil?
-      # remove destination folder
-      execute("rm", ["-rf", repo_output_dir], current_dir)
-
-      # re-create destination folder
-      execute("mkdir", ["-p", repo_output_dir], current_dir)
-
-      # render build failure template
-      File.write "#{repo_output_dir}/index.html",
-        CrystalDoc::Views::BuildFailureTemplate.new(repo.source_url)
-    end
-
-    false
-  ensure
-    unless build_dir.nil?
-      # ensure removal of temp folder
-      execute("rm", ["-rf", build_dir], current_dir)
-    end
-
-    unless fossil_file.nil?
-      execute("rm", ["-rf", fossil_file], current_dir)
-    end
   end
 
   private def current_dir : String
@@ -470,8 +464,8 @@ class CrystalDoc::Builder
       "--timeout=00:15:00",
     ]
 
-    fj_args += ro_dirs.map { |d| "--read-only=#{d}" }
-    fj_args += rw_dirs.map { |d| "--read-write=#{d}" }
+    fj_args += ro_dirs.map { |dir| "--read-only=#{dir}" }
+    fj_args += rw_dirs.map { |dir| "--read-write=#{dir}" }
 
     fj_args += ["--net=none"] unless networking
 
@@ -526,7 +520,7 @@ class CrystalDoc::Builder
         <link class="crystaldoc-post-process" rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96x96.png">
         <link class="crystaldoc-post-process" rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
         <link class="crystaldoc-post-process" rel="manifest" href="/assets/manifest.json">
-      HTML
+        HTML
 
       sidebar.inner_html += <<-HTML
         <div class="crystaldoc-post-process" style="margin-top: auto; padding: 27px 0 0 30px;">
@@ -534,7 +528,7 @@ class CrystalDoc::Builder
             Generated using Crystal #{Crystal::VERSION}<br>#{Time.utc}
           </small>
         </div>
-      HTML
+        HTML
 
       sidebar_header = html.css(".sidebar-header").first
       sidebar_search_box = sidebar_header.css(".search-box").first
@@ -544,7 +538,7 @@ class CrystalDoc::Builder
         <a style="margin: 0 10px 0 0" href='https://shards.info#{repo.path}'>
           Shards.info
         </a>
-      HTML
+        HTML
 
       sidebar_header.inner_html = <<-HTML + sidebar_search_box.to_html + sidebar_project_summary.to_html
         <div class="crystaldoc-info-header crystaldoc-post-process" style="padding: 9px 15px 9px 30px">
@@ -556,7 +550,7 @@ class CrystalDoc::Builder
             #{shards_info_link}
           </div>
         </div>
-      HTML
+        HTML
     end
   end
 end

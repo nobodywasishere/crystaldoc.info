@@ -56,7 +56,7 @@ class CrystalDoc::CLI::Searcher
       SELECT repo_status.last_commit
       FROM crystal_doc.repo_status
       WHERE repo_status.repo_id = $1
-    SQL
+      SQL
 
     if old_commit_hash == current_commit_hash
       Log.info { "#{idx}: Old commit hash matches current, no updated needed." }

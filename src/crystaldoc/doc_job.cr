@@ -35,7 +35,7 @@ class CrystalDoc::DocJob
       ) taken_job
       WHERE taken_job.id = doc_job.id
       RETURNING taken_job.*;
-    SQL
+      SQL
   end
 
   def self.select(db : Queriable, limit : Int32) : Array(DocJob)?
@@ -48,7 +48,7 @@ class CrystalDoc::DocJob
         ON repo.id = repo_version.repo_id
       ORDER BY job.priority DESC, job_age DESC
       LIMIT $1
-    SQL
+      SQL
   end
 
   def self.in_queue?(db : Queriable, service : String, username : String, project_name : String, version : String) : Bool
@@ -62,7 +62,7 @@ class CrystalDoc::DocJob
           ON repo.id = repo_version.repo_id
         WHERE repo.service = $1 AND repo.username = $2 AND repo.project_name = $3 AND repo_version.commit_id = $4
       )
-    SQL
+      SQL
   end
 
   def self.in_queue?(db : Queriable, version_id : Int32) : Bool
@@ -72,7 +72,7 @@ class CrystalDoc::DocJob
         FROM crystal_doc.doc_job
         WHERE doc_job.version_id = $1
       )
-    SQL
+      SQL
   end
 
   def self.count(db : Queriable) : Int64
@@ -80,7 +80,7 @@ class CrystalDoc::DocJob
       SELECT n_live_tup
       FROM pg_stat_user_tables
       WHERE relname = 'doc_job';
-    SQL
+      SQL
   end
 
   def self.remove(db : Queriable, source_url : String, commit_id : String)
@@ -91,6 +91,6 @@ class CrystalDoc::DocJob
       AND repo_version.repo_id = repo.id
       AND repo.source_url = $1
       AND repo_version.commit_id = $2;
-    SQL
+      SQL
   end
 end
