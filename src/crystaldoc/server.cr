@@ -1,6 +1,7 @@
 require "kemal"
 require "db"
 require "pg"
+require "random/secure"
 
 serve_static({"gzip" => true, "dir_listing" => false})
 
@@ -8,6 +9,15 @@ serve_static({"gzip" => true, "dir_listing" => false})
 
 Dir.mkdir_p("public/css", 0o744)
 File.write "public/css/style.css", CrystalDoc::Views::StyleTemplate.new
+
+# ── MCP rate limiter ─────────────────────────────────────────────────
+RATE_LIMITER = CrystalDoc::RateLimiter.new(max_tokens: 60.0, refill_rate: 1.0)
+
+private def client_ip(env) : String
+  env.request.headers["X-Forwarded-For"]?.try(&.split(",").first.strip) ||
+    env.request.remote_address.try(&.to_s) ||
+    "unknown"
+end
 
 get "/" do
   render "src/views/main.ecr", "src/views/layout.ecr"
@@ -109,6 +119,119 @@ post "/new_repository" do |env|
   end
 rescue ex
   Log.error { "NewRepo Exception: #{ex.inspect}\n  #{ex.backtrace.join("\n  ")}" }
+end
+
+# ── MCP (Model Context Protocol) ────────────────────────────────────
+# SSE transport — required by MCP spec for real-time communication
+#
+# The MCP SSE transport works as follows:
+#   1. Client opens an SSE connection to GET /mcp
+#   2. Server sends the endpoint the client should POST to
+#   3. Client POSTs JSON-RPC 2.0 messages to that endpoint
+#   4. Server writes JSON-RPC responses as SSE "message" events
+#
+MCP_CHANNELS       = {} of String => Channel(String)
+MCP_CHANNELS_MUTEX = Mutex.new
+
+private def register_mcp_session : {String, Channel(String)}
+  session_id = Random::Secure.hex(16)
+  channel = Channel(String).new(32)
+  MCP_CHANNELS_MUTEX.synchronize do
+    MCP_CHANNELS[session_id] = channel
+  end
+  {session_id, channel}
+end
+
+private def unregister_mcp_session(session_id : String) : Nil
+  MCP_CHANNELS_MUTEX.synchronize do
+    MCP_CHANNELS.delete(session_id)
+  end
+end
+
+private def mcp_session_channel(session_id : String?) : Channel(String)?
+  return unless session_id
+
+  MCP_CHANNELS_MUTEX.synchronize do
+    MCP_CHANNELS[session_id]?
+  end
+end
+
+get "/mcp" do |env|
+  halt env, status_code: 429, response: "Rate limit exceeded\n" unless RATE_LIMITER.allow?(client_ip(env))
+
+  env.response.content_type = "text/event-stream"
+  env.response.headers["Cache-Control"] = "no-cache"
+  env.response.headers["Connection"] = "keep-alive"
+  env.response.headers["Access-Control-Allow-Origin"] = "*"
+  env.response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+
+  session_id, channel = register_mcp_session
+
+  env.response.puts "event: endpoint"
+  env.response.puts "data: /mcp?session_id=#{session_id}"
+  env.response.puts ""
+  env.response.flush
+
+  loop do
+    select
+    when msg = channel.receive
+      env.response.puts "event: message"
+      env.response.puts "data: #{msg}"
+      env.response.puts ""
+    when timeout(30.seconds)
+      env.response.puts ": keepalive"
+      env.response.puts ""
+    end
+    env.response.flush
+  end
+rescue IO::Error
+  # client disconnected
+ensure
+  unregister_mcp_session(session_id) if session_id
+end
+
+# POST handler — receives JSON-RPC 2.0 messages
+post "/mcp" do |env|
+  halt env, status_code: 429, response: "Rate limit exceeded\n" unless RATE_LIMITER.allow?(client_ip(env))
+
+  env.response.content_type = "application/json"
+  env.response.headers["Access-Control-Allow-Origin"] = "*"
+  env.response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+
+  body = env.request.body.try(&.gets_to_end) || ""
+  session_id = env.request.query_params["session_id"]?
+  channel = mcp_session_channel(session_id)
+
+  unless channel
+    status_code, response = CrystalDoc::MCP.handle_streamable_http(body, REPO_DB)
+    env.response.status_code = status_code
+    next response
+  end
+
+  request = JSON.parse(body)
+
+  unless request.raw.is_a?(Hash)
+    halt env, status_code: 400, response: CrystalDoc::MCP.parse_error_response
+  end
+
+  response = CrystalDoc::MCP.handle(request, REPO_DB)
+  channel.send(response) unless response.empty?
+  env.response.status_code = 202
+  ""
+rescue JSON::ParseException
+  error = CrystalDoc::MCP.parse_error_response
+  channel.try(&.send(error))
+  env.response.status_code = 202
+  ""
+end
+
+# CORS preflight for MCP
+options "/mcp" do |env|
+  env.response.headers["Access-Control-Allow-Origin"] = "*"
+  env.response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+  env.response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+  env.response.headers["Access-Control-Max-Age"] = "86400"
+  "OK"
 end
 
 error 404 do |env|
