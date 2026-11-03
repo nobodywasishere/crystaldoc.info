@@ -123,6 +123,13 @@ when "server"
   Kemal.config.logger = Kemal::LogHandler.new(log_file)
   Kemal.config.env = "production"
 
+  # Warm the resource inventory cooperatively before the first MCP request.
+  spawn do
+    CrystalDoc::MCP::DocCacheInstance.list_repo_versions
+  rescue ex
+    Log.error(exception: ex) { "Failed to warm MCP resource list" }
+  end
+
   Kemal.run
 when "builder"
   Dir.mkdir_p "./logs"

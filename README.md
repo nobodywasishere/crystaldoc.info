@@ -41,16 +41,48 @@ See [here](https://crystal-lang.org/reference/1.9/database/connection_pool.html#
 connection pool settings.
 
 After the database is setup, each of the 3 services can be setup and run in their own processes, for example, using systemd daemons.
-It is recommended to build with `--release` and `-D=preview_mt` to provide the most performance. You can set the `CRYSTAL_WORKERS`
-environment variable to set the number of builders and searchers to run at the same time (defaults to 4).
+Build with `--release -Dwithout_mt`, without `-Dpreview_mt`. The services launch subprocesses, and the
+multithreaded build has left forked searcher children spinning in the GC callback in production.
+`-Dwithout_mt` also explicitly selects the single-threaded scheduler on newer Crystal releases.
+The runtime still runs concurrent I/O fibers. Use `builder --workers=COUNT` and
+`searcher --workers=COUNT` to set job concurrency (defaults to 4); on the current single-CPU,
+2 GB host, use one builder and one searcher to limit contention and compiler memory use.
 
 ```sh
-$ shards build crystaldoc_server --release -D=preview_mt
-$ ./bin/crystaldoc_server
-# repeat for crystaldoc_builder and crystaldoc_searcher
+$ shards build --release -Dwithout_mt
+$ ./bin/crystaldoc server
+# Run builder --workers=1 and searcher --workers=1 in separate services.
 ```
 
 Each of the services outputs are logged to their respective log file in the `logs/` folder.
+
+The production checkout is `/srv/crystaldoc.info`. Install the log rotation policy with
+`sudo install -m 0644 config/logrotate.conf /etc/logrotate.d/crystaldoc` and validate it
+with `sudo logrotate --debug /etc/logrotate.d/crystaldoc`. It keeps seven rotations per
+service and uses `copytruncate` because the processes keep their log files open. A small
+number of log lines can be lost between copying and truncation. `maxsize` is checked only
+when logrotate runs (normally daily); an hourly logrotate timer is recommended on this host.
+Do not force the first rotation until sufficient space is available for a copy of the
+largest active log.
+
+The reviewed server overrides are in `config/crystaldoc-builder.override.conf`,
+`config/crystaldoc-searcher.override.conf`, and `config/logrotate-timer.override.conf`.
+The first two belong under the corresponding
+`~crystaldoc/.config/systemd/user/crystaldoc-{builder,searcher}.service.d/` directory;
+reload the user manager and restart those services after installing them. The timer
+override belongs under `/etc/systemd/system/logrotate.timer.d/`; reload the system
+manager and restart `logrotate.timer`. `CRYSTAL_WORKERS=1` mitigates the old binary's
+runtime parallelism until the next deploy replaces it with a `-Dwithout_mt` build.
+
+In Nginx, use `proxy_pass http://127.0.0.1:3000/` and the corresponding IPv4 address in
+`proxy_redirect`. The application listens on IPv4; `localhost` also resolves to `::1`,
+which causes connection refusals and contributes to "no live upstreams" during stalls.
+Validate with `sudo nginx -t` before reloading Nginx.
+
+MCP's resource inventory is warmed at server startup. Directory traversal yields to the
+HTTP scheduler, and expired inventories refresh in the background while requests use the
+previous snapshot. A cold resource-list request waits for the initial scan, but other
+requests continue to run. The inventory cache is published only after a successful scan.
 
 ## Contributing
 

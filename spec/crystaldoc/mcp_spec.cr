@@ -479,6 +479,51 @@ describe CrystalDoc::MCP::DocCache do
   end
 
   describe "#list_repo_versions" do
+    it "lets other request fibers run during a cold inventory scan" do
+      with_fixture_repo do
+        cache = CrystalDoc::MCP::DocCache.new
+        progressed = false
+        spawn { progressed = true }
+
+        cache.list_repo_versions.size.should eq(1)
+        progressed.should be_true
+      end
+    end
+
+    it "serves stale versions while refreshing without blocking document reads" do
+      with_fixture_repo do
+        cache = CrystalDoc::MCP::DocCache.new(ttl: 100.milliseconds)
+        cache.list_repo_versions.size.should eq(1)
+        Dir.mkdir_p("public/github/testuser/testproject/v2.0.0")
+        File.write("public/github/testuser/testproject/v2.0.0/index.json", "{}")
+        sleep 110.milliseconds
+
+        # Scheduling a refresh must return the old snapshot immediately.
+        cache.list_repo_versions.size.should eq(1)
+        cache.get("github", "testuser", "testproject", "v1.0.0").should_not be_nil
+
+        deadline = Time.monotonic + 5.seconds
+        loop do
+          Fiber.yield
+          break if cache.list_repo_versions.size == 2
+          fail "MCP inventory refresh did not complete" if Time.monotonic >= deadline
+        end
+      end
+    end
+
+    it "shares the initial scan between concurrent resource-list requests" do
+      with_fixture_repo do
+        cache = CrystalDoc::MCP::DocCache.new
+        results = Channel(Array(CrystalDoc::MCP::RepoVersionInfo)).new
+        2.times { spawn { results.send(cache.list_repo_versions) } }
+
+        first = results.receive
+        second = results.receive
+        first.size.should eq(1)
+        second.should be(first)
+      end
+    end
+
     it "lists all repo versions from the filesystem" do
       with_fixture_repo do
         cache = CrystalDoc::MCP::DocCache.new

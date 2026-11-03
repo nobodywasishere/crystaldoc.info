@@ -30,7 +30,7 @@ jobs:
       - name: Shards install
         run: shards install
       - name: Run tests
-        run: LOG_LEVEL=error crystal spec
+        run: LOG_LEVEL=error crystal spec -Dwithout_mt
 
   deploy:
     name: Deploy
@@ -49,7 +49,7 @@ jobs:
             cd /srv/crystaldoc.info/
             git pull
             shards install
-            shards build --release -Dpreview_mt
+            shards build --release -Dwithout_mt
             ./bin/crystaldoc micrate up
             systemctl --user restart crystaldoc-server.service
             systemctl --user restart crystaldoc-searcher.service

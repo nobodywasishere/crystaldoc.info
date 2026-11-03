@@ -6,6 +6,8 @@ module CrystalDoc::MCP
     private alias VersionsEntry = NamedTuple(data: Array(RepoVersionInfo), loaded_at: Time)
 
     @versions_cache : VersionsEntry?
+    @versions_refreshing = false
+    @versions_mutex = Mutex.new
 
     def initialize(@ttl : Time::Span = Time::Span.new(days: 1))
       @cache = {} of String => Entry
@@ -147,20 +149,44 @@ module CrystalDoc::MCP
     end
 
     def list_repo_versions : Array(RepoVersionInfo)
-      @mutex.synchronize do
-        if (entry = @versions_cache) && (Time.utc - entry[:loaded_at] < @ttl)
+      entry = @mutex.synchronize { @versions_cache }
+      if entry
+        if Time.utc - entry[:loaded_at] >= @ttl
+          @mutex.synchronize do
+            unless @versions_refreshing
+              @versions_refreshing = true
+              spawn do
+                refresh_repo_versions
+              rescue ex
+                Log.error(exception: ex) { "Failed to refresh MCP resource list; retaining cached versions" }
+              ensure
+                @mutex.synchronize { @versions_refreshing = false }
+              end
+            end
+          end
+        end
+        return entry[:data]
+      end
+
+      # Only cold requests wait for a scan. This separate lock never blocks
+      # reads of individual documentation files while the inventory loads.
+      @versions_mutex.synchronize do
+        if entry = @mutex.synchronize { @versions_cache }
           return entry[:data]
         end
-
-        results = [] of RepoVersionInfo
-        each_index_file do |service, user, project, version|
-          results << RepoVersionInfo.new(service, user, project, version)
-        end
-        results = results.uniq { |info| {info.service, info.user, info.project, info.version} }
-
-        @versions_cache = {data: results, loaded_at: Time.utc}
-        results
+        refresh_repo_versions
       end
+    end
+
+    private def refresh_repo_versions : Array(RepoVersionInfo)
+      results = [] of RepoVersionInfo
+      each_index_file do |service, user, project, version|
+        results << RepoVersionInfo.new(service, user, project, version)
+      end
+      @mutex.synchronize do
+        @versions_cache = {data: results, loaded_at: Time.utc}
+      end
+      results
     end
 
     private def each_entry(repo : String? = nil, max_versions : Int32 = 0, & : JSON::Any, String, String ->)
@@ -175,12 +201,18 @@ module CrystalDoc::MCP
       if repo
         parts = repo.split("/")
         return unless parts.size == 3 && parts.none?(&.empty?)
-        pattern = Path.new("public", parts[0], parts[1], parts[2], "*", "index.json")
+        root = Path.new("public", parts[0], parts[1], parts[2])
+        depth = 1
       else
-        pattern = Path.new("public", "*", "*", "*", "*", "index.json")
+        root = Path.new("public")
+        depth = 4
       end
 
-      paths = Dir.glob(pattern.to_s)
+      paths = [] of String
+      each_version_directory(root, depth) do |directory|
+        path = directory / "index.json"
+        paths << path.to_s if File.file?(path)
+      end
       if max_versions > 0
         paths.sort! do |a, b|
           a_parts = a.split("/")
@@ -195,6 +227,26 @@ module CrystalDoc::MCP
         next unless parts.size >= 6
         service, user, project, version = parts[-5], parts[-4], parts[-3], parts[-2]
         yield service, user, project, version
+      end
+    end
+
+    # Dir.glob walks the entire tree without yielding. On the production
+    # corpus that can monopolize the HTTP scheduler for minutes. Yield even
+    # for entries we skip, and never descend into generated API directories.
+    private def each_version_directory(root : Path, depth : Int32, &block : Path ->)
+      return unless Dir.exists?(root)
+
+      Dir.each_child(root) do |name|
+        Fiber.yield
+        next if name.starts_with?('.')
+        path = root / name
+        next if File.symlink?(path)
+        next unless Dir.exists?(path)
+        if depth == 1
+          yield path
+        else
+          each_version_directory(path, depth - 1, &block)
+        end
       end
     end
 
